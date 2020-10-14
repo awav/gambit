@@ -1,5 +1,6 @@
 Draft of the Gambit project
 ====
+
 _Authors: Artem Artemev (art.art.v@gmail.com), and continues..._
 
 ## Motivation
