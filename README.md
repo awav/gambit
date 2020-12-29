@@ -3,6 +3,9 @@ Draft of the Gambit project
 
 _Authors: Artem Artemev (art.art.v@gmail.com), and continues..._
 
+> _Up-to-date description is here (with latex rendering):
+> https://colab.research.google.com/drive/1TyrctD_Cv2p6f-wtoqgv5Oq60pfcKSmE?usp=sharing_
+
 ## Motivation
 
 Scientific programming has multiple challenges that come from the plexus of various disciplines. The focal point of this document is Machine Learning (ML) - an intersection of mathematics and computer science. ML success solely relies on the performance and efficiency of a code that involves linear algebra and complicated math. Writing adequate code that is fast and scales well using standard computer programming languages, like C++ or Python (popular choices), is a difficult task. When efficiency is mandatory for mathematical algorithms, the code complexity ramps up. And in turn, demands from a developer to have sharply honed skills in distributed and parallel computing.
