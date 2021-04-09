@@ -1,7 +1,7 @@
 Draft of the Gambit project
 ====
 
-_Authors: Artem Artemev (art.art.v@gmail.com), and continues..._
+_Authors: Artem Artemev (art.art.v@gmail.com), Tilman Roeder (tilmroe@gmail.com), and continues..._
 
 > _Up-to-date description is here (with latex rendering):
 > https://colab.research.google.com/drive/1TyrctD_Cv2p6f-wtoqgv5Oq60pfcKSmE?usp=sharing_
@@ -101,6 +101,21 @@ There are extensions to PyTorch that support map-reduce (and caching) and make l
 [XLA][5] is a compiler for linear algebra and all listed frameworks - PyTorch, TensorFlow and JAX support it. This is an obvious choice for making tweaking of user-defined expressions (computational graphs). It can be done implicitly without user interventions.
 
 **TO BE CONTINUED...**
+
+## Notes on building TFL/ XLA
+
+1. Follow the steps at https://www.tensorflow.org/install/source?hl=en#docker_linux_builds (use docker on linux, otherwise the build will take forever, since docker on MacOS is running in a VM; note that the build will take around 2-5 hours)
+
+2. Make sure to set the bazel cache directory to within the mounted files, so they are not lost when you restart your contaier (VERY IMPORTANT, unless you like waiting for 5h while bazel fries your CPU) To do this run bazel with the following options:
+
+```bash
+# E.g. building the pip package
+bazel --output_user_root=/mnt/.cache/bazel/_bazel_root/ build //tensorflow/tools/pip_package:build_pip_package
+# E.g. running XLA tests
+bazel --output_user_root=/mnt/.cache/bazel/_bazel_root/ test //tensorflow/compiler/xla/...
+```
+
+3. If you didn't add the flags on the first run, you can get the cache directory to the correct place by running `cp /root/.cache /mnt/.cache` (TFL is huge, so this can take a while ...)
 
 ## References
 
