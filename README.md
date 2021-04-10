@@ -117,6 +117,8 @@ bazel --output_user_root=/mnt/.cache/bazel/_bazel_root/ test //tensorflow/compil
 
 3. If you didn't add the flags on the first run, you can get the cache directory to the correct place by running `cp /root/.cache /mnt/.cache` (TFL is huge, so this can take a while ...)
 
+4. Actually, using the path flag can cause issue, so do this: `ln -s /mnt/.cache /root/.cache` ;)
+
 ## References
 
 * [KeOps framework][1]
