@@ -30,6 +30,10 @@ def op(x: Tensor, y: Tensor, z: Tensor) -> Tensor:
     xyz = xy @ z
     return xyz
 
+def no_jit_op(x, y, z):
+    xy = x @ tf.transpose(y)
+    xyz = xy @ z
+    return xyz
 
 def main():
     n, m = 1000, 2
@@ -38,6 +42,7 @@ def main():
     z = tf.random.normal((n, m))
     res = op(x, y, z)
     print(f"Op result = {res.numpy()}")
+    print(f"Delta = {(res - no_jit_op(x, y, z)).numpy()}")
 
 
 if __name__ == "__main__":
