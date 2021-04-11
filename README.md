@@ -130,8 +130,8 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     ```bash
     # building the pip package
     bazel build //tensorflow/tools/pip_package:build_pip_package
-    # running XLA tests
-    bazel test //tensorflow/compiler/xla/...
+    # running (only our) XLA tests
+    bazel test //tensorflow/compiler/xla/service:rewriting_optimizer_test
     ```
 
 ## References
