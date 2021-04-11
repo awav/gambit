@@ -104,20 +104,35 @@ There are extensions to PyTorch that support map-reduce (and caching) and make l
 
 ## Notes on building TFL/ XLA
 
-1. Follow the steps at https://www.tensorflow.org/install/source?hl=en#docker_linux_builds (use docker on linux, otherwise the build will take forever, since docker on MacOS is running in a VM; note that the build will take around 2-5 hours)
+Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#docker_linux_builds (use docker on linux, otherwise the build will take forever, since docker on MacOS is running in a VM; note that the build will take around 2-5 hours)
 
-2. Make sure to set the bazel cache directory to within the mounted files, so they are not lost when you restart your contaier (VERY IMPORTANT, unless you like waiting for 5h while bazel fries your CPU) To do this run bazel with the following options:
-
-```bash
-# E.g. building the pip package
-bazel --output_user_root=/mnt/.cache/bazel/_bazel_root/ build //tensorflow/tools/pip_package:build_pip_package
-# E.g. running XLA tests
-bazel --output_user_root=/mnt/.cache/bazel/_bazel_root/ test //tensorflow/compiler/xla/...
-```
-
-3. If you didn't add the flags on the first run, you can get the cache directory to the correct place by running `cp /root/.cache /mnt/.cache` (TFL is huge, so this can take a while ...)
-
-4. Actually, using the path flag can cause issue, so do this: `ln -s /mnt/.cache /root/.cache` ;)
+1. Clone the gambit repository:
+    ```bash
+    git clone git@github.com:awav/gambit.git
+    cd gambit
+    git submodule init && git submodule update
+    ```
+2. Get the docker image:
+    ```bash
+    docker pull tensorflow/tensorflow:devel
+    ```
+3. Run the docker container. Inside `gambit` run:
+    ```bash
+    docker run -it -w /mnt -v $PWD:/mnt -e HOST_PERMS="$(id -u):$(id -g)" tensorflow/tensorflow:devel bash
+    ```
+4. Make sure to set up the bazel cache directory!
+    - Set up a `.cache` folder inside of the cloned gambit: `mkdir .cache`
+    - After starting the docker container, sym-link it: `ln -s /mnt/.cache /root/.cache`
+    - Make sure to set the bazel cache directory to within the mounted files, so they are not lost when you restart your contaier (VERY IMPORTANT, unless you like waiting for 5h while bazel fries your CPU)
+    - If you forgot this, this can be fixed after the first build by running: `cp /root/.cache /mnt/.cache`
+5. For the first build, you may need to configure it. Run `./configure` inside the `tensorflow` directory.
+5. Run the build (inside the `tensorflow` directory) (expect the first run to take between 2-5 hours):
+    ```bash
+    # building the pip package
+    bazel build //tensorflow/tools/pip_package:build_pip_package
+    # running XLA tests
+    bazel test //tensorflow/compiler/xla/...
+    ```
 
 ## References
 
