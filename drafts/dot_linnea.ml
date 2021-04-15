@@ -62,7 +62,7 @@ let abc = make_dot ~pristine:true ab c 1 0
 let abcd = make_dot ~pristine:true abc d 1 1
 let abcde = make_dot ~pristine:true abcd e 1 0
 
-let root = Root abc
+let root = Root abc (* let's do simple first, then try the larger graph... *)
 
 let () = print_endline "The full expression"
 let () = root |> string_of_hlo |> print_endline
