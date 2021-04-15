@@ -34,8 +34,16 @@ let lhs_to_rhs node =
       Some (score, new_node)
   | _ -> None
 
+let lhs_to_rhs_matcher node =
+  match node with
+  | Node {
+      op = Dot { lhs = Node { op = Dot _; pristine = inner_pristine } };
+      pristine = outer_pristine
+    } -> inner_pristine || outer_pristine
+  | _ -> false
+
 let lhs_to_rhs_rewrite = {
-  matcher = (fun n -> match lhs_to_rhs n with Some _ -> true | None -> false);
+  matcher = lhs_to_rhs_matcher;
   scorer = (fun n -> match lhs_to_rhs n with Some (s, _) -> s | None -> 0);
   apply = (fun n -> match lhs_to_rhs n with Some (_, r) -> r | None -> n);
 }
@@ -43,16 +51,16 @@ let lhs_to_rhs_rewrite = {
 
 (* Test case! *)
 
-let a = Node { op = Parameter; shape = [1000; 2]; prestine = true }
-let b = Node { op = Parameter; shape = [1000; 2]; prestine = true }
-let c = Node { op = Parameter; shape = [1000; 2]; prestine = true }
-let d = Node { op = Parameter; shape = [1000; 2]; prestine = true }
-let e = Node { op = Parameter; shape = [1000; 2]; prestine = true }
+let a = Node { op = Parameter; shape = [1000; 2]; pristine = true }
+let b = Node { op = Parameter; shape = [1000; 2]; pristine = true }
+let c = Node { op = Parameter; shape = [1000; 2]; pristine = true }
+let d = Node { op = Parameter; shape = [1000; 2]; pristine = true }
+let e = Node { op = Parameter; shape = [1000; 2]; pristine = true }
 
-let ab = make_dot a b 1 1
-let abc = make_dot ab c 1 0
-let abcd = make_dot abc d 1 1
-let abcde = make_dot abcd e 1 0
+let ab = make_dot ~pristine:true a b 1 1
+let abc = make_dot ~pristine:true ab c 1 0
+let abcd = make_dot ~pristine:true abc d 1 1
+let abcde = make_dot ~pristine:true abcd e 1 0
 
 let root = Root abc
 

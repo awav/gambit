@@ -1,11 +1,11 @@
 type shape = int list
 and op = Parameter | Dot of { lhs: hlo; rhs: hlo; lhs_c: int; rhs_c: int }
-and hlo = Root of hlo | Node of { op: op; shape: shape; prestine: bool }
+and hlo = Root of hlo | Node of { op: op; shape: shape; pristine: bool }
 
 type rewrite = { matcher: hlo -> bool; scorer: hlo -> int; apply: hlo -> hlo }
 
 
-let make_dot lhs rhs i j =
+let make_dot ?pristine:(pristine=false) lhs rhs i j =
   let rec out_shape sl sr i j so =
     match sl, sr, i, j with
     | _ :: sl, sr, 0, j -> out_shape sl sr (i - 1) j so
@@ -19,7 +19,7 @@ let make_dot lhs rhs i j =
     Node {
       op = Dot { lhs = Node lhs; rhs = Node rhs; lhs_c = i; rhs_c = j };
       shape = out_shape lhs.shape rhs.shape i j [];
-      prestine = true;
+      pristine;
     }
   | _ -> raise (Invalid_argument "need two nodes")
 
@@ -32,7 +32,7 @@ let rec string_of_hlo node =
   match node with
   | Root root -> Printf.sprintf "Root { %s }" (string_of_hlo root)
   | Node node ->
-    match node.op with
+    (if node.pristine then "" else "*") ^ match node.op with
     | Parameter -> Printf.sprintf "Parameter { shape=(%s) }" (string_of_shape node.shape)
     | Dot { lhs; rhs; lhs_c; rhs_c } ->
       Printf.sprintf
