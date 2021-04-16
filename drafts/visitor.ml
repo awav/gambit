@@ -32,3 +32,24 @@ let rec dfs_rewrite rewrites hlo =
       )
       (0, hlo)
       alternatives
+
+(** Best first depth first rewrite strategy. In principle this would
+    allow for early stopping schemes. *)
+let rec bfdf_rewrite rewrites hlo =
+  match dfs_match_tree rewrites hlo with
+  | [] -> (0, hlo)
+  | alternatives ->
+    let best_first = List.sort (fun (a, _) (b, _) -> a - b) alternatives in
+    List.fold_left
+      (fun (prev_score, prev_hlo) (single_score, rewrite) ->
+        let below_score, full_rewrite = dfs_rewrite rewrites rewrite in
+        let full_score = below_score + single_score in
+        if full_score < prev_score then (full_score, full_rewrite) else (prev_score, prev_hlo)
+      )
+      (0, hlo)
+      best_first
+
+(** Another possibility would be to keep the whole re-write graph and
+    instead of doing a depth first search, pick the best possible match
+    out of all available branches. I believe that's the approach Linnea
+    has taken. *)

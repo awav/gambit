@@ -109,9 +109,9 @@ let e = Node { op = Parameter "e"; shape = [1000; 2]; pristine = true }
 let ab = make_dot ~pristine:true a b 1 1
 let abc = make_dot ~pristine:true ab c 1 0
 let abcd = make_dot ~pristine:true abc d 1 1
-let abcde = make_dot ~pristine:true abcd e 1 0
 (* let cd = make_dot ~pristine:true c d 1 1 *)
 (* let abcd = make_dot ~pristine:true ab cd 1 0 *)
+let abcde = make_dot ~pristine:true abcd e 1 0
 
 let root = Root abcde
 
@@ -121,6 +121,13 @@ let () = root |> string_of_hlo |> print_endline
 let () = print_endline "\nDepth first search:"
 let () = root
   |> (dfs_rewrite [lhs_to_rhs_rewrite])
+  |> fun (score, tree) -> Printf.printf "Score: %d\n" score; tree
+  |> string_of_hlo
+  |> print_endline
+
+let () = print_endline "\nBest first search:"
+let () = root
+  |> (bfdf_rewrite [lhs_to_rhs_rewrite])
   |> fun (score, tree) -> Printf.printf "Score: %d\n" score; tree
   |> string_of_hlo
   |> print_endline
