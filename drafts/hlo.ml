@@ -2,7 +2,7 @@ type shape = int list
 and op = Parameter of string | Dot of { lhs: hlo; rhs: hlo; lhs_c: int; rhs_c: int }
 and hlo = Root of hlo | Node of { op: op; shape: shape; pristine: bool }
 
-type rewrite = { matcher: hlo -> bool; scorer: hlo -> int; apply: hlo -> hlo }
+type rewrite = { test: hlo -> bool; score: hlo -> int; apply: hlo -> hlo }
 
 let rec string_of_shape s =
   match s with

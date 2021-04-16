@@ -1,47 +1,34 @@
 open Hlo
 
-let find_matches ({ matcher; scorer; apply }) (Root tree) =
-  let rec walk acc node parent =
-    let acc = if (matcher node) then (scorer node, node, parent, apply node) :: acc else acc in
-    match node with
-    | Node { op = Parameter _ } -> acc
-    | Node { op = Dot { lhs; rhs } } ->
-      let acc = walk acc lhs node in
-      walk acc rhs node
-  in walk [] tree (Root tree)
+(** [dfs_match_tree scorers root] is a list of all matches with
+    scores and applied re-writes *)
+let rec dfs_match_tree (rewrites:rewrite list) (hlo:hlo) : (int * hlo) list =
+  let do_rewrite { test; score; apply } =
+    if test hlo then Some (score hlo, apply hlo) else None in
+  let alternatives = List.filter_map do_rewrite rewrites in
+  match hlo with
+  | Root root -> List.map (fun (s, r) -> s, Root r) (dfs_match_tree rewrites root)
+  | Node { op = Parameter _ } -> alternatives
+  | Node { op = Dot dot; shape; pristine; } ->
+    let alt_lhs = dfs_match_tree rewrites dot.lhs in
+    let lhs_alternatives =
+      List.map (fun (scr, lhs) -> (scr, Node { shape; pristine; op = Dot { dot with lhs } } )) alt_lhs in
+    let alt_rhs = dfs_match_tree rewrites dot.rhs in
+    let rhs_alternatives =
+      List.map (fun (scr, rhs) -> (scr, Node { shape; pristine; op = Dot { dot with rhs } } )) alt_rhs in
+    alternatives @ lhs_alternatives @ rhs_alternatives
 
-let rec string_of_matches m =
-  match m with
-  | [] -> ""
-  | (score, node, parent, rewrite) :: t ->
-    let match_str = Printf.sprintf
-      "(\n  %d,\n  %s,\n  %s,\n  %s\n),"
-      score
-      (string_of_hlo node)
-      (string_of_hlo parent)
-      (string_of_hlo rewrite)
-    in
-    match_str ^ (string_of_matches t)
-
-(* The simplest exploration strategy possible. *)
-let rewrite_dfs rewriters (Root root) =
-  let rec walk node =
-    let score, best = List.fold_left
-      (fun (prev_score, prev_best) ({ matcher; scorer; apply }) ->
-        if matcher node then
-          let new_node = apply node in
-          let score = scorer node in
-          let s, b = walk new_node in
-          if score + s < prev_score then
-            score + s, b
-          else
-            prev_score, prev_best
-        else
-          prev_score, prev_best
+(** The simplest exploration strategy possible: Depth first search
+    of the rewrite tree. *)
+let rec dfs_rewrite rewrites hlo =
+  match dfs_match_tree rewrites hlo with
+  | [] -> (0, hlo)
+  | alternatives ->
+    List.fold_left
+      (fun (prev_score, prev_hlo) (single_score, rewrite) ->
+        let below_score, full_rewrite = dfs_rewrite rewrites rewrite in
+        let full_score = below_score + single_score in
+        if full_score < prev_score then (full_score, full_rewrite) else (prev_score, prev_hlo)
       )
-      (0, node)
-      rewriters in
-    score, best
-  in
-  let (score, root) = walk root in
-  (score, Root root)
+      (0, hlo)
+      alternatives

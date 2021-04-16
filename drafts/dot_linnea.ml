@@ -51,6 +51,8 @@ let lhs_to_rhs node =
         contr_idx_inner_with_c_unadjusted
       ) = if contr_idx_ab_with_c < rank_a - 1 then
         (* it's A with C *)
+        (* TODO: This should in principle introduce a transpose in the end ! *)
+        let () = assert false in
         (Node a, Node b, contr_idx_a_with_b, contr_idx_b_with_a, contr_idx_ab_with_c)
       else
         (* it's B with C *)
@@ -81,7 +83,7 @@ let lhs_to_rhs node =
       Some (proposed_size - current_size, new_outer_dot)
   | _ -> None
 
-let lhs_to_rhs_matcher node =
+let lhs_to_rhs_test node =
   match node with
   | Node {
       op = Dot { lhs = Node { op = Dot _; pristine = inner_pristine } };
@@ -90,8 +92,8 @@ let lhs_to_rhs_matcher node =
   | _ -> false
 
 let lhs_to_rhs_rewrite = {
-  matcher = lhs_to_rhs_matcher;
-  scorer = (fun n -> match lhs_to_rhs n with Some (s, _) -> s | None -> 0);
+  test = lhs_to_rhs_test;
+  score = (fun n -> match lhs_to_rhs n with Some (s, _) -> s | None -> 0);
   apply = (fun n -> match lhs_to_rhs n with Some (_, r) -> r | None -> n);
 }
 
@@ -108,15 +110,17 @@ let ab = make_dot ~pristine:true a b 1 1
 let abc = make_dot ~pristine:true ab c 1 0
 let abcd = make_dot ~pristine:true abc d 1 1
 let abcde = make_dot ~pristine:true abcd e 1 0
+(* let cd = make_dot ~pristine:true c d 1 1 *)
+(* let abcd = make_dot ~pristine:true ab cd 1 0 *)
 
 let root = Root abcde
 
 let () = print_endline "The full expression"
 let () = root |> string_of_hlo |> print_endline
 
-let () = print_endline "\nDepth first search with recursive replace at all"
+let () = print_endline "\nDepth first search:"
 let () = root
-  |> (rewrite_dfs [lhs_to_rhs_rewrite])
+  |> (dfs_rewrite [lhs_to_rhs_rewrite])
   |> fun (score, tree) -> Printf.printf "Score: %d\n" score; tree
   |> string_of_hlo
   |> print_endline
