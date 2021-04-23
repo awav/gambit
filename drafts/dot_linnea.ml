@@ -113,6 +113,8 @@ let abcd = make_dot ~pristine:true abc d 1 1
 (* let abcd = make_dot ~pristine:true ab cd 1 0 *)
 let abcde = make_dot ~pristine:true abcd e 1 0
 
+(* (((AB)C)D)E *)
+
 let root = Root abcde
 
 let () = print_endline "The full expression"

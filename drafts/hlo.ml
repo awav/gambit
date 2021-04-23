@@ -1,5 +1,12 @@
 type shape = int list
-and op = Parameter of string | Dot of { lhs: hlo; rhs: hlo; lhs_c: int; rhs_c: int }
+
+and op =
+  | Parameter of string
+  | Dot of { lhs: hlo; rhs: hlo; lhs_c: int; rhs_c: int }
+  | Concat of { items: hlo list; dim: int } (* HLOInstruction::CreateConcatenate *)
+  | Slice of { item: hlo; start: shape; limit: shape } (* HLOInstruction::CreateSlice; stride is omitted *)
+  | PointFn of hlo (* stand-in for any point-wise applied function like tf.math.sin *)
+
 and hlo = Root of hlo | Node of { op: op; shape: shape; pristine: bool }
 
 type rewrite = { test: hlo -> bool; score: hlo -> int; apply: hlo -> hlo }
@@ -26,6 +33,38 @@ let rec string_of_hlo ?ws:(ws="") node =
         lhs_c rhs_c
         (string_of_shape node.shape)
         ws
+    | Concat { items; dim } ->
+      Printf.sprintf
+        "Concat {\n%s  items=[%s\n%s  ]\n%s  dim=%d; shape=(%s)\n%s}"
+        ws
+        (
+          items
+          |> List.map (string_of_hlo ~ws:("    "^ws))
+          |> List.map ( ( ^ ) "\n" )
+          |> List.fold_left ( ^ ) ""
+        )
+        ws
+        ws
+        dim
+        (string_of_shape node.shape)
+        ws
+    | Slice { item; start; limit } ->
+      Printf.sprintf
+        "Slice {\n%s  item=\n%s;\n%s  start=(%s); limit=(%s)\n%s}"
+        ws
+        (string_of_hlo ~ws:("  "^ws) item)
+        ws
+        (string_of_shape start)
+        (string_of_shape limit)
+        ws
+    | PointFn item ->
+      Printf.sprintf
+        "PointFn {\n%s  item=\n%s;\n%s  shape=(%s)\n%s}"
+        ws
+        (string_of_hlo ~ws:("  "^ws) item)
+        ws
+        (string_of_shape node.shape)
+        ws
 
 let make_dot ?pristine:(pristine=false) lhs rhs i j =
   let rec out_shape sl sr i j so =
@@ -50,3 +89,23 @@ let make_dot ?pristine:(pristine=false) lhs rhs i j =
       pristine;
     }
   | _ -> raise (Invalid_argument "need two nodes")
+
+let rec shape_of node =
+  match node with
+  | Root root -> shape_of root
+  | Node { shape } -> shape
+
+let inputs_of node =
+  match node with
+  | Root root -> [root]
+  | Node node ->
+    match node.op with
+    | Parameter _ -> []
+    | Dot { lhs; rhs } -> [lhs; rhs]
+    | Concat { items } -> items
+    | Slice { item } -> [item]
+    | PointFn item -> [item]
+
+let rec rank_of = function
+  | Root root -> rank_of root
+  | Node { shape } -> List.length shape
