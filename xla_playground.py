@@ -76,6 +76,24 @@ def gradients_full(x: Tensor, y: Tensor, z: Tensor) -> Tensor:
     dz = g.gradient(xyz, z)
     return (xyz, dx, dy, dz)
 
+@tf.function(experimental_compile=True)
+def loops(x: Tensor, y: Tensor, z: Tensor) -> Tensor:
+    a = x
+    for i in range(0, 9):
+        if i % 2 == 0:
+            a = a @ tf.transpose(y)
+        else:
+            a = a @ y
+    return a @ z
+
+@tf.function(experimental_compile=True)
+def tf_loop(x: Tensor, y: Tensor, z: Tensor) -> Tensor:
+    i = tf.constant(0)
+    c = lambda i, _: tf.less(i, 10)
+    b = lambda i, v: (tf.add(i, 1), v @ tf.transpose(y) @ y)
+    r = tf.while_loop(c, b, [i, x])
+    return r
+
 def main(simple=True):
     n, m = 1000, 2
     x = tf.random.normal((n, m))
@@ -96,7 +114,55 @@ def main_full_grad():
     z = tf.random.normal((n, m))
     xyz, dx, dy, dz = gradients_full(x, y, z)
 
+def main_while_loop():
+    n, m = 1000, 2
+    x = tf.random.normal((n, m))
+    y = tf.random.normal((n, m))
+    z = tf.random.normal((n, m))
+    # loops(x, y, z)
+    tf_loop(x, y, z)
+
+# $exp(||X-Y||^2) v$ (where exp is pointwise)
+@tf.function(experimental_compile=True)
+def test_dist_matrix(x: Tensor, y: Tensor, v: Tensor) -> Tensor:
+    xx = tf.reduce_sum(tf.square(x), 1)
+    yy = tf.reduce_sum(tf.square(y), 1)
+
+    xx = tf.reshape(xx, (-1, 1))
+    yy = tf.reshape(yy, (1, -1))
+
+    D = tf.sqrt(tf.maximum(xx + yy - 2.0 * tf.matmul(x, y, False, True), 0.0))
+
+    e = tf.math.exp(D)
+    return e @ v
+
+def main_dist_matrix():
+    n, m, l = 1000, 3, 2
+    x = tf.random.normal((n, m))
+    y = tf.random.normal((n, m))
+    v = tf.random.normal((n, l))
+    res = test_dist_matrix(x, y, v).numpy()
+    print(res.shape)
+    print(res)
+
+@tf.function(experimental_compile=True)
+def most_simple_example(x: Tensor, y: Tensor, z: Tensor) -> Tensor:
+    outer = x @ tf.transpose(y)
+    outer_mapped = tf.math.sin(outer)
+    return outer_mapped @ z
+
+def main_simple_example():
+    x = tf.random.normal((2000, 2))
+    y = tf.random.normal((1000, 2))
+    z = tf.random.normal((1000, 2))
+    res = most_simple_example(x, y, z)
+    print(res.shape)
+    print(res.numpy())
+
+
 if __name__ == "__main__":
     # main(False)
     # with_gradients()
-    main_full_grad()
+    # main_full_grad()
+    # main_dist_matrix()
+    main_simple_example()
