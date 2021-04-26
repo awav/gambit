@@ -151,13 +151,19 @@ def most_simple_example(x: Tensor, y: Tensor, z: Tensor) -> Tensor:
     outer_mapped = tf.math.sin(outer)
     return outer_mapped @ z
 
+def most_simple_example_no_xla(x: Tensor, y: Tensor, z: Tensor) -> Tensor:
+    outer = x @ tf.transpose(y)
+    outer_mapped = tf.math.sin(outer)
+    return outer_mapped @ z
+
 def main_simple_example():
     x = tf.random.normal((2000, 2))
     y = tf.random.normal((1000, 2))
     z = tf.random.normal((1000, 2))
     res = most_simple_example(x, y, z)
+    res2 = most_simple_example_no_xla(x, y, z)
     print(res.shape)
-    print(res.numpy())
+    print(res.numpy() - res2.numpy())
 
 
 if __name__ == "__main__":

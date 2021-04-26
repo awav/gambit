@@ -131,7 +131,9 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     # building the pip package
     bazel build //tensorflow/tools/pip_package:build_pip_package
     # running (only our) XLA tests
-    bazel test //tensorflow/compiler/xla/service:rewriting_optimizer_test
+    bazel test //tensorflow/compiler/xla/service:dot_order_optimizer_test
+    # build and install pip package
+    bazel build //tensorflow/tools/pip_package:build_pip_package && ./bazel-bin/tensorflow/tools/pip_package/build_pip_package /mnt && pip install ../tensorflow-2.5.0-cp36-cp36m-linux_x86_64.whl -U
     ```
 
 ## References
