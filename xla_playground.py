@@ -136,14 +136,27 @@ def test_dist_matrix(x: Tensor, y: Tensor, v: Tensor) -> Tensor:
     e = tf.math.exp(D)
     return e @ v
 
+def test_dist_matrix_no_xla(x: Tensor, y: Tensor, v: Tensor) -> Tensor:
+    xx = tf.reduce_sum(tf.square(x), 1)
+    yy = tf.reduce_sum(tf.square(y), 1)
+
+    xx = tf.reshape(xx, (-1, 1))
+    yy = tf.reshape(yy, (1, -1))
+
+    D = tf.sqrt(tf.maximum(xx + yy - 2.0 * tf.matmul(x, y, False, True), 0.0))
+
+    e = tf.math.exp(D)
+    return e @ v
+
 def main_dist_matrix():
-    n, m, l = 1000, 3, 2
+    n, m, l = 2000, 3, 2
     x = tf.random.normal((n, m))
     y = tf.random.normal((n, m))
     v = tf.random.normal((n, l))
     res = test_dist_matrix(x, y, v).numpy()
+    res_no_xla = test_dist_matrix_no_xla(x, y, v).numpy()
     print(res.shape)
-    print(res)
+    print(res - res_no_xla)
 
 @tf.function(experimental_compile=True)
 def most_simple_example(x: Tensor, y: Tensor, z: Tensor) -> Tensor:
@@ -156,19 +169,60 @@ def most_simple_example_no_xla(x: Tensor, y: Tensor, z: Tensor) -> Tensor:
     outer_mapped = tf.math.sin(outer)
     return outer_mapped @ z
 
+@tf.function(experimental_compile=True)
+def most_simple_with_grad(x: Tensor, y: Tensor, z: Tensor) -> Tensor:
+    with tf.autodiff.GradientTape(persistent=True) as g:
+        g.watch(x)
+        g.watch(y)
+        g.watch(z)
+        outer = x @ tf.transpose(y)
+        outer_mapped = tf.math.sin(outer)
+        final = outer_mapped @ z
+    dx = g.gradient(final, x)
+    dy = g.gradient(final, y)
+    dz = g.gradient(final, z)
+    return (final, dx, dy, dz)
+
+def most_simple_with_grad_no_xla(x: Tensor, y: Tensor, z: Tensor) -> Tensor:
+    with tf.autodiff.GradientTape(persistent=True) as g:
+        g.watch(x)
+        g.watch(y)
+        g.watch(z)
+        outer = x @ tf.transpose(y)
+        outer_mapped = tf.math.sin(outer)
+        final = outer_mapped @ z
+    dx = g.gradient(final, x)
+    dy = g.gradient(final, y)
+    dz = g.gradient(final, z)
+    return (final, dx, dy, dz)
+
 def main_simple_example():
     x = tf.random.normal((2000, 2))
-    y = tf.random.normal((1000, 2))
-    z = tf.random.normal((1000, 2))
-    res = most_simple_example(x, y, z)
-    res2 = most_simple_example_no_xla(x, y, z)
-    print(res.shape)
-    print(res.numpy() - res2.numpy())
+    y = tf.random.normal((10000, 2))
+    z = tf.random.normal((10000, 2))
+    # res11 = most_simple_with_grad(x, y, z)
+    # res21 = most_simple_example_no_xla(x, y, z)
+    # print(res11[0].numpy() - res21[0].numpy())
+    res12 = most_simple_example(x, y, z)
+    res22 = most_simple_example_no_xla(x, y, z)
+    print(res12.numpy() - res22.numpy())
+    # print(res21.numpy() - res22.numpy())
 
+@tf.function(experimental_compile=True)
+def nice_dist_matrix(x: Tensor, y: Tensor) -> Tensor:
+    diff = x[None, :, :] - y[:, None, :]
+    dist = diff ** 2
+    return tf.reduce_sum(dist, axis=2)
+
+def test_nice_dist_matrix():
+    x = tf.random.normal((4, 2))
+    y = tf.random.normal((4, 2))
+    print(nice_dist_matrix(x, y).numpy())
 
 if __name__ == "__main__":
     # main(False)
     # with_gradients()
     # main_full_grad()
-    # main_dist_matrix()
-    main_simple_example()
+    main_dist_matrix()
+    # main_simple_example()
+    # test_nice_dist_matrix()

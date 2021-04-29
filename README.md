@@ -136,6 +136,15 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     # build and install pip package
     bazel build //tensorflow/tools/pip_package:build_pip_package && ./bazel-bin/tensorflow/tools/pip_package/build_pip_package /mnt && pip install ../tensorflow-2.5.0-cp36-cp36m-linux_x86_64.whl -U
     ```
+6. Extract images from XLA:
+    ```bash
+    # All passes
+    TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
+    # Only our pass
+    TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/ --xla_enable_hlo_passes_only=split-intermediate-tensors" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
+    # Disable our hlo pass
+    XLA_FLAGS="--xla_disable_hlo_passes=split-intermediate-tensors" python ...
+    ```
 
 ## References
 
