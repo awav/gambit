@@ -1,6 +1,8 @@
 from typing import TypeVar
 import tensorflow as tf
 
+print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
+
 Tensor = TypeVar("Tensor", bound=tf.Tensor)
 
 # $exp(||X-Y||^2) v$ (where exp is pointwise)
