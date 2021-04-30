@@ -215,14 +215,25 @@ def nice_dist_matrix(x: Tensor, y: Tensor) -> Tensor:
     return tf.reduce_sum(dist, axis=2)
 
 def test_nice_dist_matrix():
-    x = tf.random.normal((4, 2))
-    y = tf.random.normal((4, 2))
+    x = tf.random.normal((2000, 1000))
+    y = tf.random.normal((2000, 1000))
     print(nice_dist_matrix(x, y).numpy())
+
+@tf.function(experimental_compile=True)
+def arg_max_test(x: Tensor, y: Tensor) -> Tensor:
+    diff = x[None, :, :] - y[:, None, :]
+    return tf.math.argmax(diff, -1)
+
+def test_argmax_dist_matrix():
+    x = tf.random.normal((2000, 1000))
+    y = tf.random.normal((2000, 1000))
+    print(arg_max_test(x, y).numpy())
 
 if __name__ == "__main__":
     # main(False)
     # with_gradients()
     # main_full_grad()
-    main_dist_matrix()
+    # main_dist_matrix()
     # main_simple_example()
     # test_nice_dist_matrix()
+    test_argmax_dist_matrix()
