@@ -222,7 +222,7 @@ def test_nice_dist_matrix():
 @tf.function(experimental_compile=True)
 def arg_max_test(x: Tensor, y: Tensor) -> Tensor:
     diff = x[None, :, :] - y[:, None, :]
-    return tf.math.reduce_max(diff, -1)
+    return tf.math.argmax(diff, -1)
 
 def test_argmax_dist_matrix():
     x = tf.random.normal((2000, 1000))
