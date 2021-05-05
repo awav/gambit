@@ -234,9 +234,14 @@ def reduce_unit(x: Tensor) -> Tensor:
     unit = tf.eye(2000)
     return unit @ x
 
+def reduce_unit_no_xla(x: Tensor) -> Tensor:
+    unit = tf.eye(2000)
+    return unit @ x
+
 def test_unit():
     x = tf.random.normal((2000, 10))
     print(reduce_unit(x).numpy())
+    print(reduce_unit(x).numpy() - reduce_unit_no_xla(x).numpy())
 
 if __name__ == "__main__":
     # main(False)
