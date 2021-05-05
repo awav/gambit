@@ -229,6 +229,15 @@ def test_argmax_dist_matrix():
     y = tf.random.normal((2000, 1000))
     print(arg_max_test(x, y).numpy())
 
+@tf.function(experimental_compile=True)
+def reduce_unit(x: Tensor) -> Tensor:
+    unit = tf.eye(2000)
+    return unit @ x
+
+def test_unit():
+    x = tf.random.normal((2000, 10))
+    print(reduce_unit(x).numpy())
+
 if __name__ == "__main__":
     # main(False)
     # with_gradients()
@@ -236,4 +245,5 @@ if __name__ == "__main__":
     # main_dist_matrix()
     # main_simple_example()
     # test_nice_dist_matrix()
-    test_argmax_dist_matrix()
+    # test_argmax_dist_matrix()
+    test_unit()
