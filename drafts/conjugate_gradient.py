@@ -12,7 +12,7 @@ def add_diagonal(matrix: T, diagonal_scalar: T) -> T:
 
 
 def squared_exponential(vec_x: T, vec_y: T, lengthscale: T) -> T:
-    diff = (vec_x[..., None] - vec_y[:, None, :]) ** 2
+    diff = (vec_x[:, None, :] - vec_y[None, :, :]) ** 2
     distance = tf.reduce_sum(diff / lengthscale[None, None, :] ** 2, axis=-1)
     return tf.exp(distance)
 
@@ -20,22 +20,33 @@ def squared_exponential(vec_x: T, vec_y: T, lengthscale: T) -> T:
 def conjugate_gradient(
     matrix: T, rhs: T, initial_solution: T, epsilon: T, max_iter: int, repeat: int
 ) -> T:
+    """
+    Find a solution to `Kx = b`, where `K \in R^{N \times N}`, `x \in R^{N}`, and `b \in R^{N}`.
+
+    Args:
+        matrix: Matrix with shape [N, N]. K matrix in `Kx = b`
+        rhs: Vector of length [N, B]. b vector in `Kx = b`
+        initial_solution: Vector of length [N]. `x_0` initial guess vector in `K x_0 = b`
+    
+    Returns:
+        Solution vector `x` to `Kx = b` expression.
+    """
     K = matrix
     b = rhs
     x0 = initial_solution
 
     r = b - K @ x0
     d = r
-    delta0 = tf.matmul(r, r, transpose_a=True)
+    delta0 = tf.reduce_sum(r ** 2)
 
     State = namedtuple("State", "i, x, r, d, delta")
 
     def cond(state):
-        return state.i < max_iter and state.delta > delta0 * (epsilon ** 2)
+        return state.i < max_iter and state.delta >= delta0 * (epsilon ** 2)
 
     def body(state):
         q = K @ state.d
-        alpha = state.delta / tf.matmul(state.d, q, transpose_a=True)
+        alpha = state.delta / tf.reduce_sum(state.d * q)
         x_next = state.x + alpha * state.d
 
         if state.i != 0 and state.i % repeat == 0:
@@ -43,7 +54,7 @@ def conjugate_gradient(
         else:
             r_next = state.r - alpha * q
 
-        delta_next = tf.matmul(r_next, r_next, transpose_a=True)
+        delta_next = tf.matmul(r_next, r_next, transpose_a=True)[0, 0]
         beta = delta_next / state.delta
         d_next = r_next + beta * state.d
         i_next = state.i + 1
@@ -86,22 +97,24 @@ def cg_example(
 
 
 def main():
-    cg_example_compiled = tf.function(cg_example)
+    tf.random.set_seed(111)
+    cg_example_compiled = tf.function(cg_example, experimental_compile=True)
+    # cg_example_compiled = cg_example
+
     dtype = tf.float64
     d = 2
-    n = 1000
-    x = tf.random.normal((n, d), dtype=dtype)
-    y = tf.random.normal((n, d), dtype=dtype)
+    n = 100
+    x = tf.random.uniform((n, d), dtype=dtype)
     b = tf.ones([n, 1], dtype=dtype)
-    lenghscale = tf.ones([d], dtype=dtype)
-    sigma_2 = 0.1
-    error = 1.0
+    lengthscale = 3.0 * tf.ones([d], dtype=dtype)
+    sigma_2 = 5.0
+    error = 0.1
     max_iters = n // 2
     repeat_iter = n // 4
 
     res = cg_example_compiled(
         x,
-        y,
+        x,
         b,
         lengthscale,
         sigma_2,
