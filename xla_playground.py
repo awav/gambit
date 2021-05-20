@@ -136,6 +136,13 @@ def test_dist_matrix(x: Tensor, y: Tensor, v: Tensor) -> Tensor:
     e = tf.math.exp(D)
     return e @ v
 
+# more simple dist matrix, also $exp(||X-Y||^2) v$
+@tf.function(experimental_compile=True)
+def test_simple_dist_matrix(x: Tensor, y: Tensor, v: Tensor) -> Tensor:
+    diff = x[None, :, :] - y[:, None, :]
+    dist = tf.reduce_sum(diff ** 2, -1)
+    return tf.math.exp(dist) @ v
+
 def test_dist_matrix_no_xla(x: Tensor, y: Tensor, v: Tensor) -> Tensor:
     xx = tf.reduce_sum(tf.square(x), 1)
     yy = tf.reduce_sum(tf.square(y), 1)
@@ -157,6 +164,14 @@ def main_dist_matrix():
     res_no_xla = test_dist_matrix_no_xla(x, y, v).numpy()
     print(res.shape)
     print(res - res_no_xla)
+
+def main_dist_matrix_simple():
+    n, m, l = 2000, 3, 2
+    x = tf.random.normal((n, m))
+    y = tf.random.normal((n, m))
+    v = tf.random.normal((n, l))
+    res = test_simple_dist_matrix(x, y, v).numpy()
+    print(res.shape)
 
 @tf.function(experimental_compile=True)
 def most_simple_example(x: Tensor, y: Tensor, z: Tensor) -> Tensor:
@@ -243,12 +258,29 @@ def test_unit():
     print(reduce_unit(x).numpy())
     print(reduce_unit(x).numpy() - reduce_unit_no_xla(x).numpy())
 
+@tf.function(experimental_compile=True)
+def nested_dot(a: Tensor, aa: Tensor, b: Tensor, c: Tensor) -> Tensor:
+    tmp = a @ tf.transpose(b)
+    tmp = tf.math.sin(tmp)
+    tmp = tmp @ aa
+    tmp = tf.math.sin(tmp)
+    return tf.tensordot(tmp, c, [[1], [0]])
+
+def main_nested_dot():
+    x = tf.random.normal((2000, 10))
+    xx = tf.random.normal((2000, 10))
+    y = tf.random.normal((2000, 10))
+    z = tf.random.normal((2000, 10))
+    print(nested_dot(x, xx, y, z).numpy())
+
 if __name__ == "__main__":
     # main(False)
     # with_gradients()
     # main_full_grad()
     # main_dist_matrix()
+    main_dist_matrix_simple()
     # main_simple_example()
     # test_nice_dist_matrix()
     # test_argmax_dist_matrix()
-    test_unit()
+    # test_unit()
+    # main_nested_dot()
