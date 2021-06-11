@@ -1,20 +1,36 @@
 from examples import cases
-import tensorflow as tf
+import subprocess
 
 # TODO: Get from cmd ...
 SIZES = [1, 2, 8, 16, 32]# , 64, 128]
 
 def run_case(case):
+  self_dir = "/".join(__loader__.path.split("/")[:-1])
+  stats = []
   for size in SIZES:
-    print(f"| running size {size}")
-    args = [tf.random.normal(tuple(size * a for a in arg)) for arg in case.arguments]
-    # TODO: Reset tfl stats
-    case.run(*args)
-    # TODO: Collect tfl stats
+    # run in process such that the peak memory use is isolated
+    print(f"| running size = {size}")
+    process = subprocess.Popen(["python3", f"{self_dir}/run.py", case.__name__, f"{size}"],
+                               shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output = process.stdout.read().decode("utf-8")
+    runtime, memory = output.split("\t")
+    stats.append({
+      "size": size,
+      "runtime": float(runtime),
+      "memory": int(memory),
+    })
+  return stats
 
 print("Running benchmark cases ...")
+output_rows = []
 for case in cases:
   print(f"Benchmark case {case.__name__}")
-  run_case(case)
+  for stats in run_case(case):
+    output_rows.append(
+      # CSV row: case, size, runtime, peak memory
+      [f"case:{case.__name__}", stats['size'], stats['runtime'], stats['memory']]
+    )
 
-# TODO: Output tfl stats
+# Output CSV
+csv_txt = "\n".join(["\t".join([str(cell) for cell in row]) for row in output_rows])
+open("bench.csv", "w").write(csv_txt)
