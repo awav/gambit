@@ -13,12 +13,19 @@ def run_case(case):
     process = subprocess.Popen(["python3", f"{self_dir}/run.py", case.__name__, f"{size}"],
                                shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = process.stdout.read().decode("utf-8")
-    runtime, memory = output.split("\t")
-    stats.append({
-      "size": size,
-      "runtime": float(runtime),
-      "memory": int(memory),
-    })
+    stderr = process.stderr.read().decode("utf-8")
+    try:
+      runtime, memory = output.split("\t")
+      stats.append({
+        "size": size,
+        "runtime": float(runtime),
+        "memory": float(memory),
+      })
+    except:
+      print("\nAn error occured:")
+      print("=================\n")
+      print(stderr)
+      exit(1)
   return stats
 
 print("Running benchmark cases ...")
