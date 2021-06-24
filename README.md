@@ -149,12 +149,12 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     ```
 7. Run benchmarks:
     ```bash
-    # Install dependencies
+    # Install dependencies (for CPU profiler)
     pip install memory_profiler
     # Run with our pass
-    python bench/main.py
+    python bench/main.py "bench_with_split.csv"
     # Run without our pass
-    XLA_FLAGS="--xla_disable_hlo_passes=split-intermediate-tensors" python bench/main.py
+    XLA_FLAGS="--xla_disable_hlo_passes=split-intermediate-tensors" python bench/main.py "bench_no_split.csv"
     ```
 
 ## References
