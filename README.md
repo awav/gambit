@@ -1,5 +1,5 @@
 Draft of the Gambit project
-====
+===========================
 
 _Authors: Artem Artemev (art.art.v@gmail.com), Tilman Roeder (tilmroe@gmail.com), and continues..._
 
@@ -126,7 +126,7 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     - Make sure to set the bazel cache directory to within the mounted files, so they are not lost when you restart your contaier (VERY IMPORTANT, unless you like waiting for 5h while bazel fries your CPU)
     - If you forgot this, this can be fixed after the first build by running: `cp /root/.cache /mnt/.cache`
 5. For the first build, you may need to configure it. Run `./configure` inside the `tensorflow` directory.
-5. Run the build (inside the `tensorflow` directory) (expect the first run to take between 2-5 hours):
+6. Run the build (inside the `tensorflow` directory) (expect the first run to take between 2-5 hours):
     ```bash
     # building the pip package
     bazel build //tensorflow/tools/pip_package:build_pip_package
@@ -136,7 +136,7 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     # build and install pip package
     bazel build //tensorflow/tools/pip_package:build_pip_package && ./bazel-bin/tensorflow/tools/pip_package/build_pip_package --nightly_flag /mnt && pip install ../tf_nightly-2.5.0-cp36-cp36m-linux_x86_64.whl -U
     ```
-6. Extract images from XLA and other options:
+7. Extract images from XLA and other options:
     ```bash
     # All passes
     TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
@@ -147,7 +147,7 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     # Option for setting the split sizes threshold
     TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/ --xla_try_split_tensor_size=2000000" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
     ```
-7. Run benchmarks:
+8. Run benchmarks:
     ```bash
     # Install dependencies (for CPU profiler)
     pip install memory_profiler

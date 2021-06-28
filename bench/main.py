@@ -3,7 +3,7 @@ import subprocess
 import sys
 
 output_csv_file, = sys.argv[1:]
-SIZES = [1, 2, 8, 16, 32, 64]
+SIZES = [1, 2, 8, 16, 24, 32, 40, 48, 56, 64]
 
 SAMPLES = 10
 
