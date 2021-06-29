@@ -7,7 +7,6 @@ from dataclasses import dataclass
 from time import time
 import sys
 from pathlib import Path
-import pandas as pd
 from memory_profiler import memory_usage
 
 cur_dir = str(Path(__file__).expanduser().absolute().parent)
@@ -16,10 +15,6 @@ sys.path.append(cur_dir)
 from examples import outerprod as outerprod_example
 from examples import kernels as kernels_example
 
-# ./bench.py bench --mem-limit 2GB outerprod --input_size "(1e6, 200)"
-# ./bench.py bench --mem-limit 2GB innerprod --input_size "(1e6, 200)"
-# ./bench.py bench --mem-limit 2GB kernel --type se --input_size "(1e6, 50)"
-# ./bench.py bench --mem-limit 2GB kernel --type se --input_size "(1e6, 50)"
 
 __default_gambit_logs = "./default_gambit_logs"
 
