@@ -1,10 +1,12 @@
-cmd = 'python ./bench.py --warmup 10 --repeat 100'
+cmd = '{xla_flags} XLA_FLAGS="--{split}=split-intermediate-tensors" python ./bench.py --warmup 10 --repeat 100'
 
 [[exp]]
 cmd = '{cmd} {kind} -i "({num}, {dim})"'
-uid = './{rootdir}/{kind}/{float}/shape_{num}_{dim}'
+uid = './{rootdir}/{kind}/{float}-{split}/shape-{num}-{dim}'
 
 rootdir = "logs"
+xla_flags = 'TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit"'
+split = ["xla_enable_hlo_passes_only", "xla_disable_hlo_passes"]
 kind = "outerprod-with-itself"
 num = [100, 1000, 10_000, 100_000, 1_000_000]
 dim = [100, 1000]
@@ -12,8 +14,10 @@ float = ["fp64", "fp32"]
 
 [[exp]]
 cmd = '{cmd} {kind} -a "({num}, {dim})" -b "({num}, {dim})" -v "({num}, 1)"'
-uid = './{rootdir}/{kind}/{float}/{kernel}_{num}_{dim}'
+uid = './{rootdir}/{kind}/{float}-{split}/{kernel}-{num}-{dim}'
 
+xla_flags = 'TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit"'
+split = ["xla_enable_hlo_passes_only", "xla_disable_hlo_passes"]
 rootdir = "logs"
 kind = "kernel"
 kernel = ["se", "linear"]
