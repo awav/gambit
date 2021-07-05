@@ -134,7 +134,9 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     bazel test //tensorflow/compiler/xla/service:dot_order_optimizer_test
     bazel test //tensorflow/compiler/xla/service:intermediate_tensor_splitter_test
     # build and install pip package
-    bazel build //tensorflow/tools/pip_package:build_pip_package && ./bazel-bin/tensorflow/tools/pip_package/build_pip_package --nightly_flag /mnt && pip install ../tf_nightly-2.5.0-cp36-cp36m-linux_x86_64.whl -U
+    bazel build //tensorflow/tools/pip_package:build_pip_package
+    ./bazel-bin/tensorflow/tools/pip_package/build_pip_package --nightly_flag /mnt
+    pip install ../tf_nightly-2.5.0-cp36-cp36m-linux_x86_64.whl -U
     ```
 7. Extract images from XLA and other options:
     ```bash
