@@ -24,11 +24,12 @@ class FloatType(click.ParamType):
 
     def convert(self, value, param, ctx):
         options = {"fp32": np.float32, "fp64": np.float64}
+        print(value, param, ctx)
         try:
             norm_value = value.lower()
             float_type = options[norm_value]
             return float_type
-        except:
+        except Exception as ex:
             self.fail(f"{value} is not a valid float type [fp32, fp64]", param, ctx)
 
     def __repr__(self):
@@ -213,7 +214,7 @@ def outerprod(ctx: click.Context, a_shape: Tuple[int], b_shape: Tuple[int]):
     cmd_ctx.run(exec_fn)
 
 
-kernel_choice = click.Choice(["se", "linear"])
+kernel_choice = click.Choice(["se", "matern32", "linear"])
 
 
 @main.command()
@@ -227,17 +228,31 @@ def kernel_vector_product(
 ):
     cmd_ctx = ctx.obj
     dim: int = a_shape[-1]
-    kernel = kernels_example.create_kernel(kernel_name, dim)
+    dtype = cmd_ctx.dtype
+
+    kernel = kernels_example.create_kernel(kernel_name, dim, dtype=dtype)
+
     at = tf.random.uniform(a_shape, dtype=cmd_ctx.dtype)
     bt = at
     if b_shape is not None:
-        bt = tf.random.uniform(b_shape, dtype=cmd_ctx.dtype)
-    vt = tf.random.uniform(vector_shape, dtype=cmd_ctx.dtype)
+        bt = tf.random.uniform(b_shape, dtype=dtype)
+
+    vt = tf.random.uniform(vector_shape, dtype=dtype)
 
     def fn():
-        kernels_example.kernel_vector_product(kernel, at, bt, vt)
+        return kernels_example.kernel_vector_product(kernel, at, bt, vt)
 
-    exec_fn = tf.function(fn, experimental_compile=cmd_ctx.xla)
+    # at = tf.Variable(at)
+    # bt = tf.Variable(bt)
+    # vt = tf.Variable(bt)
+    fn_compiled = tf.function(fn, experimental_compile=cmd_ctx.xla)
+
+    def exec_fn():
+        res = fn_compiled()
+        if isinstance(res, (list, tuple)):
+            return [r.numpy() for r in res]
+        return res.numpy()
+
     cmd_ctx.run(exec_fn)
 
 

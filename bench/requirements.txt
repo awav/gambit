@@ -1,4 +1,3 @@
 gpflow
-tensorflow
 memory_profiler
 click
