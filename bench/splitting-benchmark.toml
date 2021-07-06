@@ -50,5 +50,5 @@ float = "fp64"
 
 [flags]
 restart = false
-num_proc = 2
+num_proc = 4
 gpu_indices = ["0", "1", "2", "4"]
