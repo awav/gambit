@@ -141,5 +141,7 @@ cython_debug/
 # XLA output files
 xla-dump/*.dot
 xla-dump/*.txt
+bench/xla-dump/*.dot
+bench/xla-dump/*.txt
 *.o
 *.ll

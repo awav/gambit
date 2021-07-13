@@ -12,8 +12,8 @@ from memory_profiler import memory_usage
 cur_dir = str(Path(__file__).expanduser().absolute().parent)
 sys.path.append(cur_dir)
 
-from examples import outerprod as outerprod_example
-from examples import kernels as kernels_example
+from cases import outerprod as outerprod_example
+from cases import kernels as kernels_example
 
 
 __default_gambit_logs = "./default_gambit_logs"
