@@ -2,6 +2,14 @@ from typing import Callable, Tuple, Union
 import click
 import numpy as np
 import tensorflow as tf
+
+_gpu_devices = tf.config.get_visible_devices("GPU")
+_gpu_dev = _gpu_devices[0] if _gpu_devices else None
+
+if _gpu_dev is not None:
+    tf.config.experimental.set_memory_growth(_gpu_dev, True)
+
+
 import tensorflow.config.experimental as tf_exp
 from dataclasses import dataclass
 from time import time
@@ -97,9 +105,6 @@ class CommandContext:
     def run(self, func: Callable):
         gpu_devices = tf.config.get_visible_devices("GPU")
         dev = gpu_devices[0] if gpu_devices else None
-
-        if dev is None:
-            tf.config.experimental.set_memory_growth(dev, True)
 
         def run_and_collect_stat(func, dev: Union[str, None]):
             if dev is not None:
