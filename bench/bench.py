@@ -95,15 +95,19 @@ class CommandContext:
     xla: bool
 
     def run(self, func: Callable):
-        gpu_devices = tf.config.get_visible_devices("gpu")
+        gpu_devices = tf.config.get_visible_devices("GPU")
         dev = gpu_devices[0] if gpu_devices else None
+
+        if dev is None:
+            tf.config.experimental.set_memory_growth(dev, True)
 
         def run_and_collect_stat(func, dev: Union[str, None]):
             if dev is not None:
                 time0 = time()
                 _ = func()
                 elapsed = time() - time0
-                mem = tf_exp.get_memory_info(dev)["peak"]
+                dev_name = dev.name.split(":", 1)[-1]
+                mem = tf_exp.get_memory_info(dev_name)["peak"]
                 return elapsed, mem
 
             func_tuple = (func, [], {})
@@ -150,14 +154,16 @@ class CommandContext:
         )
 
 
+_help_doesntwork = "Does not work at the moment. No action will be applied"
+
 @click.group()
 @click.option("-f", "--float-type", type=FloatType(), default="fp64")
-@click.option("-m", "--mem-limit", type=MemoryLimit(), default=None)
+@click.option("-m", "--mem-limit", type=MemoryLimit(), default=None, help=_help_doesntwork)
 @click.option("-s", "--seed", type=int, default=None)
-@click.option("-r", "--repeat", type=int, default=1)
-@click.option("-w", "--warmup", type=int, default=1)
+@click.option("-r", "--repeat", type=int, default=1, help="Number of experiment repeatitions")
+@click.option("-w", "--warmup", type=int, default=1, help="Number of warm-up iterations")
 @click.option("-l", "--logdir", type=LogdirPath(), default=__default_gambit_logs)
-@click.option("--xla/--no-xla", default=True)
+@click.option("--xla/--no-xla", default=True, help="Compile function with or without XLA")
 @click.pass_context
 def main(
     ctx: click.Context,

@@ -25,14 +25,14 @@ cmd = 'python ./bench.py --warmup 10 --repeat 100 --logdir "{uid}"'
 # float = "fp64"
 
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_enable_hlo_passes_only=split-intermediate-tensors --xla_try_split_tensor_size={split_num}" {cmd} -f {float} {kind} -k {kernel} -a "({num}, {dim})" -b "({num}, {dim})" -v "({num}, 1)"'
+cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={split_num}" {cmd} -f {float} {kind} -k {kernel} -a "({num}, {dim})" -b "({num}, {dim})" -v "({num}, 1)"'
 uid = './{rootdir}/{kind}/{float}-split_{split_num}/{kernel}-{num}-{dim}'
 
-split_num = [10000000, 20000000]
+split_num = [30_000_000_000, 10_000_000_000]
 rootdir = "logs"
 kind = "kernel-vector-product"
 kernel = ["se", "linear"]
-num = [100, 1000, 10_000, 100_000, 500_000]
+num = [100, 1000, 10_000, 100_000, 500_000, 1_000_000]
 dim = [10]
 float = "fp64"
 
@@ -43,7 +43,7 @@ uid = './{rootdir}/{kind}/{float}-no_split/{kernel}-{num}-{dim}'
 rootdir = "logs"
 kind = "kernel-vector-product"
 kernel = ["se", "linear"]
-num = [100, 1000, 10_000, 100_000, 500_000]
+num = [100, 1000, 10_000, 100_000, 500_000, 1_000_000]
 dim = [10]
 float = "fp64"
 
