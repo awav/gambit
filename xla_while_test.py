@@ -22,7 +22,7 @@ def run(large_size):
     return [State(i=i_next, sum=sum_next)]
 
   state_0 = State(i=0, sum=tf.fill((large_size, 5), 0.0))
-  [states] = tf.while_loop(cond, body, [state_0])
+  [states] = tf.while_loop(cond, body, [state_0], parallel_iterations=100)
   return states.sum
 
 run(large_size=2_000)
