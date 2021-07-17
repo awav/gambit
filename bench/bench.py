@@ -20,8 +20,9 @@ from memory_profiler import memory_usage
 cur_dir = str(Path(__file__).expanduser().absolute().parent)
 sys.path.append(cur_dir)
 
-from examples import outerprod as outerprod_example
-from examples import kernels as kernels_example
+from cases import outerprod as outerprod_example
+from cases import kernels as kernels_example
+from cases import tril_solve as tril_solve_example
 
 
 __default_gambit_logs = "./default_gambit_logs"
@@ -161,6 +162,7 @@ class CommandContext:
 
 _help_doesntwork = "Does not work at the moment. No action will be applied"
 
+
 @click.group()
 @click.option("-f", "--float-type", type=FloatType(), default="fp64")
 @click.option("-m", "--mem-limit", type=MemoryLimit(), default=None, help=_help_doesntwork)
@@ -256,6 +258,39 @@ def kernel_vector_product(
     # at = tf.Variable(at)
     # bt = tf.Variable(bt)
     # vt = tf.Variable(bt)
+    fn_compiled = tf.function(fn, experimental_compile=cmd_ctx.xla)
+
+    def exec_fn():
+        res = fn_compiled()
+        if isinstance(res, (list, tuple)):
+            return [r.numpy() for r in res]
+        return res.numpy()
+
+    cmd_ctx.run(exec_fn)
+
+
+@main.command()
+@click.option("-k", "--kernel-name", type=kernel_choice, default="se")
+@click.option("-m", "--matrix-size", type=int, required=True)
+@click.option("-b", "--batch-size", type=int, required=True)
+@click.option("-d", "--dim", type=int, required=True)
+@click.pass_context
+def tril_solve(ctx: click.Context, kernel_name: str, matrix_size: int, batch_size: int, dim: int):
+    cmd_ctx = ctx.obj
+    dtype = cmd_ctx.dtype
+
+    kernel = kernels_example.create_kernel(kernel_name, dim, dtype=dtype)
+
+    at = tf.random.uniform((matrix_size, dim), dtype=dtype)
+    bt = tf.random.uniform((batch_size, dim), dtype=dtype)
+    matrix = None
+
+    def fn():
+        m = matrix
+        x = at
+        y = bt
+        return tril_solve_example.triangular_solve(m, kernel, x, y)
+
     fn_compiled = tf.function(fn, experimental_compile=cmd_ctx.xla)
 
     def exec_fn():

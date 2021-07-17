@@ -139,7 +139,10 @@ dmypy.json
 cython_debug/
 
 # XLA output files
-xla-dump/*.dot
-xla-dump/*.txt
+xla-dump
+bench/xla-dump
 *.o
 *.ll
+
+# Numpy arrays
+*.npy
