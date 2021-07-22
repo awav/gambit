@@ -240,8 +240,8 @@ def arg_max_test(x: Tensor, y: Tensor) -> Tensor:
     return tf.math.argmax(diff, -1)
 
 def test_argmax_dist_matrix():
-    x = tf.random.normal((2000, 1000))
-    y = tf.random.normal((2000, 1000))
+    x = tf.random.normal((20000, 1000))
+    y = tf.random.normal((20000, 1000))
     print(arg_max_test(x, y).numpy())
 
 @tf.function(experimental_compile=True)
@@ -278,9 +278,9 @@ if __name__ == "__main__":
     # with_gradients()
     # main_full_grad()
     # main_dist_matrix()
-    main_dist_matrix_simple()
+    # main_dist_matrix_simple()
     # main_simple_example()
     # test_nice_dist_matrix()
-    # test_argmax_dist_matrix()
+    test_argmax_dist_matrix()
     # test_unit()
     # main_nested_dot()
