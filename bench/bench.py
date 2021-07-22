@@ -99,8 +99,8 @@ class CommandContext:
         gpu_devices = tf.config.get_visible_devices("GPU")
         dev = gpu_devices[0] if gpu_devices else None
 
-        if dev is None:
-            tf.config.experimental.set_memory_growth(dev, True)
+        # if dev is None:
+        #     tf.config.experimental.set_memory_growth(dev, True)
 
         def run_and_collect_stat(func, dev: Union[str, None]):
             if dev is not None:
@@ -278,7 +278,7 @@ def tril_solve(ctx: click.Context, kernel_name: str, matrix_size: int, batch_siz
 
     at = tf.random.uniform((matrix_size, dim), dtype=dtype)
     bt = tf.random.uniform((batch_size, dim), dtype=dtype)
-    matrix = None
+    matrix = tf.random.uniform((matrix_size, matrix_size), dtype=dtype)
 
     def fn():
         m = matrix
