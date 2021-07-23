@@ -166,6 +166,9 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     # Run without our pass
     XLA_FLAGS="--xla_disable_hlo_passes=split-intermediate-tensors" python bench/main.py "bench_no_split.csv"
     ```
+9. Notes:
+    - If you need the physical splitting in the graph (separate nodes as opposed to while loops) use this commit:
+      <https://github.com/awav/tensorflow/commit/304ad922091bc672b0c0d7017260fb24d4267d23>
 
 ## References
 
