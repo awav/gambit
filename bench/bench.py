@@ -246,7 +246,7 @@ def kernel_vector_product(
     kernel = kernels_example.create_kernel(kernel_name, dim, dtype=dtype)
 
     at = tf.random.uniform(a_shape, dtype=cmd_ctx.dtype)
-    bt = at
+    bt = None
     if b_shape is not None:
         bt = tf.random.uniform(b_shape, dtype=dtype)
 
@@ -283,7 +283,9 @@ def tril_solve(ctx: click.Context, kernel_name: str, matrix_size: int, batch_siz
 
     at = tf.random.uniform((matrix_size, dim), dtype=dtype)
     bt = tf.random.uniform((batch_size, dim), dtype=dtype)
-    matrix = None
+    matrix = np.random.rand(matrix_size, matrix_size)
+    matrix = np.tril(matrix)
+    matrix = tf.convert_to_tensor(matrix, dtype=dtype)
 
     def fn():
         m = matrix
