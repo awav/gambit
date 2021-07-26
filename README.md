@@ -151,7 +151,7 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     # All passes
     TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
     # Only our pass
-    TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/ --xla_enable_hlo_passes_only=split-intermediate-tensors" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
+    TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/ --xla_enable_hlo_passes_only=split-intermediate-tensors,broadcast-simplifier,dot-order-optimizer,dce" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
     # Disable our hlo pass
     XLA_FLAGS="--xla_disable_hlo_passes=split-intermediate-tensors" python ...
     # Option for setting the split sizes threshold
@@ -169,6 +169,11 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
 9. Notes:
     - If you need the physical splitting in the graph (separate nodes as opposed to while loops) use this commit:
       <https://github.com/awav/tensorflow/commit/304ad922091bc672b0c0d7017260fb24d4267d23>
+    - See why this wont be split ... :
+    ```
+    XLA_FLAGS="--xla_try_split_tensor_size=1GB --xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/" python ./bench.py --warmup 1 --repeat 1 --logdir "./logs/kernel-vector-product/test" -f fp64 kernel-vector-product -k se -a "(100000, 10)" -b "(100000, 10)" -v "(100000, 1)"
+    ```
+
 
 ## References
 
