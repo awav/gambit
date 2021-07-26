@@ -1,3 +1,4 @@
+from typing import Union, List
 import tensorflow as tf
 import gpflow
 
@@ -18,8 +19,13 @@ def create_kernel(name: str, dim: int, dtype=None):
 
 
 def kernel_vector_product(
-    kernel, a_input: Tensor, b_input: Tensor, v_vector: Tensor
-) -> Tensor:
-    k_ab = kernel.K(a_input, b_input)
-    small_tensor = k_ab @ v_vector
-    return small_tensor
+    kernel, a_input: Tensor, b_input: Union[Tensor, None], v_vector: Tensor
+) -> List[Tensor]:
+    variables = list(kernel.trainable_variables)
+    with tf.GradientTape() as tape:
+        k_ab = kernel.K(a_input, b_input)
+        small_tensor = k_ab @ v_vector
+        loss = tf.reduce_sum(small_tensor)
+    grads = tape.gradient(loss, variables)
+    result = [loss, *grads]
+    return result

@@ -2,6 +2,14 @@ from typing import Callable, Tuple, Union
 import click
 import numpy as np
 import tensorflow as tf
+
+_gpu_devices = tf.config.get_visible_devices("GPU")
+_gpu_dev = _gpu_devices[0] if _gpu_devices else None
+
+if _gpu_dev is not None:
+    tf.config.experimental.set_memory_growth(_gpu_dev, True)
+
+
 import tensorflow.config.experimental as tf_exp
 from dataclasses import dataclass
 from time import time
@@ -98,9 +106,6 @@ class CommandContext:
     def run(self, func: Callable):
         gpu_devices = tf.config.get_visible_devices("GPU")
         dev = gpu_devices[0] if gpu_devices else None
-
-        # if dev is None:
-        #     tf.config.experimental.set_memory_growth(dev, True)
 
         def run_and_collect_stat(func, dev: Union[str, None]):
             if dev is not None:
@@ -241,7 +246,7 @@ def kernel_vector_product(
     kernel = kernels_example.create_kernel(kernel_name, dim, dtype=dtype)
 
     at = tf.random.uniform(a_shape, dtype=cmd_ctx.dtype)
-    bt = at
+    bt = None
     if b_shape is not None:
         bt = tf.random.uniform(b_shape, dtype=dtype)
 
@@ -278,7 +283,9 @@ def tril_solve(ctx: click.Context, kernel_name: str, matrix_size: int, batch_siz
 
     at = tf.random.uniform((matrix_size, dim), dtype=dtype)
     bt = tf.random.uniform((batch_size, dim), dtype=dtype)
-    matrix = tf.random.uniform((matrix_size, matrix_size), dtype=dtype)
+    matrix = np.random.rand(matrix_size, matrix_size)
+    matrix = np.tril(matrix)
+    matrix = tf.convert_to_tensor(matrix, dtype=dtype)
 
     def fn():
         m = matrix
