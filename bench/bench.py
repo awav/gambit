@@ -23,6 +23,7 @@ sys.path.append(cur_dir)
 from cases import outerprod as outerprod_example
 from cases import kernels as kernels_example
 from cases import tril_solve as tril_solve_example
+from cases import models as models_example
 
 
 __default_gambit_logs = "./default_gambit_logs"
@@ -103,7 +104,15 @@ class CommandContext:
     logdir: str
     xla: bool
 
-    def run(self, func: Callable):
+    def run(self, func_to_run: Callable):
+        fn_compiled = tf.function(func_to_run, experimental_compile=self.xla)
+
+        def exec_fn():
+            res = fn_compiled()
+            if isinstance(res, (list, tuple)):
+                return [r.numpy() for r in res]
+            return res.numpy()
+
         gpu_devices = tf.config.get_visible_devices("GPU")
         dev = gpu_devices[0] if gpu_devices else None
 
@@ -124,11 +133,11 @@ class CommandContext:
             return elapsed, mem
 
         for _ in range(self.warmup):
-            func()
+            exec_fn()
 
         elaps, mems = [], []
         for _ in range(self.repeat):
-            elapsed, mem = run_and_collect_stat(func, dev)
+            elapsed, mem = run_and_collect_stat(exec_fn, dev)
             elaps.append(elapsed)
             mems.append(mem)
 
@@ -195,36 +204,24 @@ def main(
 
 
 @main.command()
-@click.option("-i", "--input-shape", type=Shape(), required=True)
-@click.pass_context
-def outerprod_with_itself(ctx: click.Context, input_shape: Tuple[int]):
-    cmd_ctx = ctx.obj
-    tensor = tf.random.uniform(input_shape, dtype=cmd_ctx.dtype)
-    var = tf.Variable(tensor)
-
-    def fn():
-        outerprod_example.outerprod(var, var)
-
-    exec_fn = tf.function(fn, experimental_compile=cmd_ctx.xla)
-    cmd_ctx.run(exec_fn)
-
-
-@main.command()
 @click.option("-a", "--a-shape", type=Shape(), required=True)
-@click.option("-b", "--b-shape", type=Shape(), required=True)
+@click.option("-b", "--b-shape", type=Shape(), default=None)
 @click.pass_context
-def outerprod(ctx: click.Context, a_shape: Tuple[int], b_shape: Tuple[int]):
+def outerprod(ctx: click.Context, a_shape: Tuple[int], b_shape: Union[Tuple[int], None]):
     cmd_ctx = ctx.obj
     at = tf.random.uniform(a_shape, dtype=cmd_ctx.dtype)
-    bt = tf.random.uniform(b_shape, dtype=cmd_ctx.dtype)
     a_var = tf.Variable(at)
-    b_var = tf.Variable(bt)
+
+    if b_shape is not None:
+        bt = tf.random.uniform(b_shape, dtype=cmd_ctx.dtype)
+        b_var = tf.Variable(bt)
+    else:
+        b_var = a_var
 
     def fn():
         outerprod_example.outerprod(a_var, b_var)
 
-    exec_fn = tf.function(fn, experimental_compile=cmd_ctx.xla)
-    cmd_ctx.run(exec_fn)
+    cmd_ctx.run(fn)
 
 
 kernel_choice = click.Choice(["se", "matern32", "linear"])
@@ -236,7 +233,7 @@ kernel_choice = click.Choice(["se", "matern32", "linear"])
 @click.option("-b", "--b-shape", type=Shape(), default=None)
 @click.option("-v", "--vector-shape", type=Shape(), required=True)
 @click.pass_context
-def kernel_vector_product(
+def kvp(
     ctx: click.Context, kernel_name: str, a_shape: Tuple, b_shape: Tuple, vector_shape: Tuple
 ):
     cmd_ctx = ctx.obj
@@ -255,18 +252,35 @@ def kernel_vector_product(
     def fn():
         return kernels_example.kernel_vector_product(kernel, at, bt, vt)
 
-    # at = tf.Variable(at)
-    # bt = tf.Variable(bt)
-    # vt = tf.Variable(bt)
-    fn_compiled = tf.function(fn, experimental_compile=cmd_ctx.xla)
+    cmd_ctx.run(fn)
 
-    def exec_fn():
-        res = fn_compiled()
-        if isinstance(res, (list, tuple)):
-            return [r.numpy() for r in res]
-        return res.numpy()
 
-    cmd_ctx.run(exec_fn)
+@main.command()
+@click.option("-k", "--kernel-name", type=kernel_choice, required=True)
+@click.option("-a", "--a-shape", type=Shape(), required=True)
+@click.option("-b", "--b-shape", type=Shape(), default=None)
+@click.option("-v", "--vector-shape", type=Shape(), required=True)
+@click.pass_context
+def kvp_grads(
+    ctx: click.Context, kernel_name: str, a_shape: Tuple, b_shape: Tuple, vector_shape: Tuple
+):
+    cmd_ctx = ctx.obj
+    dim: int = a_shape[-1]
+    dtype = cmd_ctx.dtype
+
+    kernel = kernels_example.create_kernel(kernel_name, dim, dtype=dtype)
+
+    at = tf.random.uniform(a_shape, dtype=cmd_ctx.dtype)
+    bt = None
+    if b_shape is not None:
+        bt = tf.random.uniform(b_shape, dtype=dtype)
+
+    vt = tf.random.uniform(vector_shape, dtype=dtype)
+
+    def fn():
+        return kernels_example.kernel_vector_product(kernel, at, bt, vt)
+
+    cmd_ctx.run(fn)
 
 
 @main.command()
@@ -293,15 +307,25 @@ def tril_solve(ctx: click.Context, kernel_name: str, matrix_size: int, batch_siz
         y = bt
         return tril_solve_example.triangular_solve(m, kernel, x, y)
 
-    fn_compiled = tf.function(fn, experimental_compile=cmd_ctx.xla)
+    cmd_ctx.run(fn)
 
-    def exec_fn():
-        res = fn_compiled()
-        if isinstance(res, (list, tuple)):
-            return [r.numpy() for r in res]
-        return res.numpy()
 
-    cmd_ctx.run(exec_fn)
+datasets = ["elevators", "pol", "houseelectric", "3droad", "buzz", "keggdirected", "keggundirected", "song"]
+dataset_choice = click.Choice(datasets)
+
+
+@main.command()
+@click.option("-k", "--kernel-name", type=kernel_choice, default="se")
+@click.option("-d", "--dataset-name", type=dataset_choice, default="elevators")
+@click.option("-m", "--num-inducing-points", type=int, default=1000)
+@click.option("--grad/--no-grad", type=bool, default=True)
+@click.pass_context
+def sgpr(ctx: click.Context, kernel_name: str, dataset_name: str, num_inducing_points: int, grad: bool):
+    cmd_ctx = ctx.obj
+    dtype = cmd_ctx.dtype
+    dataset_name = f"Wilson_{dataset_name}"
+    fn = models_example.create_sgpr_loss_and_grad(dataset_name, kernel_name, num_inducing_points, do_grad=grad)
+    cmd_ctx.run(fn)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ Tensor = tf.Tensor
 
 
 def create_kernel(name: str, dim: int, dtype=None):
+    dtype = tf.float64 if dtype is None else dtype
     with gpflow.config.as_context(gpflow.config.Config(float=dtype)):
         if name == "se":
             lengthscale = [0.1] * dim
@@ -18,7 +19,7 @@ def create_kernel(name: str, dim: int, dtype=None):
         raise ValueError(f"Unknown kernel {name}")
 
 
-def kernel_vector_product(
+def kernel_vector_product_with_grads(
     kernel, a_input: Tensor, b_input: Union[Tensor, None], v_vector: Tensor
 ) -> List[Tensor]:
     variables = list(kernel.trainable_variables)
@@ -28,4 +29,12 @@ def kernel_vector_product(
         loss = tf.reduce_sum(small_tensor)
     grads = tape.gradient(loss, variables)
     result = [loss, *grads]
+    return result
+
+
+def kernel_vector_product(
+    kernel, a_input: Tensor, b_input: Union[Tensor, None], v_vector: Tensor
+) -> List[Tensor]:
+    k_ab = kernel.K(a_input, b_input)
+    result = k_ab @ v_vector
     return result
