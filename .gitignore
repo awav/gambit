@@ -146,3 +146,5 @@ bench/xla-dump
 
 # Numpy arrays
 *.npy
+
+bench/uci
