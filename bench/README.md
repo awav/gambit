@@ -34,4 +34,4 @@ pip install git+https://github.com/hughsalimbeni/bayesian_benchmarks@master && \
 cp -r ./uci /usr/local/lib/python3.6/dist-packages/bayesian_benchmarks/data/
 ```
 
-XLA_FLAGS="--xla_try_split_tensor_size=2GB --xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/" python ./bench.py --warmup 1 --repeat 1 --logdir "./logs/kernel-vector-product/test" -f fp64 sgpr -d houseelectric
+XLA_FLAGS="--xla_try_split_tensor_size=7GB --xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/ --xla_enable_hlo_passes_only=split-intermediate-tensors,broadcast-simplifier,dot-order-optimizer,dce,flatten-call-graph" python ./bench.py --warmup 1 --repeat 1 --logdir "./logs/kernel-vector-product/test" -f fp64 sgpr -d houseelectric
