@@ -189,7 +189,7 @@ local_repository(
 ```
 4. Run the build: `python build/build.py`
 5. Follow the instructions on screen to install the built wheel for jaxlib
-6. Install a compatible jax: `pip install jax==0.2.8` 
+6. Install jax: `pip install -e .` 
 
 ## References
 

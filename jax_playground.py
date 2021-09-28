@@ -1,6 +1,5 @@
 import os
 
-
 import jax
 import numpy as np
 from typing import TypeVar
