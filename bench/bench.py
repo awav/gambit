@@ -34,7 +34,6 @@ class FloatType(click.ParamType):
 
     def convert(self, value, param, ctx):
         options = {"fp32": np.float32, "fp64": np.float64}
-        print(value, param, ctx)
         try:
             norm_value = value.lower()
             float_type = options[norm_value]
@@ -253,6 +252,8 @@ def kvp(
         return kernels_example.kernel_vector_product(kernel, at, bt, vt)
 
     cmd_ctx.run(fn)
+
+# XLA_FLAGS="--xla_try_split_tensor_size=10GB" python ./bench.py --warmup 10 --repeat 100 --logdir "./logs/kvp/fp64-split_10GB_se-500000-10" -f fp64 -r 10 -w 1 kvp -k se -a "(500000, 10)" -b "(500000, 10)" -v "(500000, 1)"
 
 
 @main.command()

@@ -25,15 +25,17 @@ cmd = 'python ./bench.py --warmup 10 --repeat 100 --logdir "{uid}"'
 # float = "fp64"
 
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={split_num}" {cmd} -f {float} {kind} -k {kernel} -a "({num}, {dim})" -b "({num}, {dim})" -v "({num}, 1)"'
-uid = './{rootdir}/{kind}/{float}-split_{split_num}/{kernel}-{num}-{dim}'
+cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -f {float} -r {repeat} -w {warm} {kind} -k {kernel} -a "({num}, {dim})" -b "({num}, {dim})" -v "({num}, 1)"'
+uid = './{rootdir}/{kind}/{float}-split_{limit}_{kernel}-{num}-{dim}'
 
-split_num = [30_000_000_000, 10_000_000_000]
+limit = "15GB"
 rootdir = "logs"
-kind = "kernel-vector-product"
+kind = "kvp"
 kernel = ["se", "linear"]
-num = [100, 1000, 10_000, 100_000, 500_000, 1_000_000]
+num = [1000, 10_000, 100_000, 500_000, 1_000_000, 5_000_000]
 dim = [10]
+repeat = 5
+warm = 1
 float = "fp64"
 
 # [[exp]]
