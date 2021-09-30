@@ -149,9 +149,9 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
 7. Extract images from XLA and other options:
     ```bash
     # All passes
-    TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
+    TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/ --xla_try_split_tensor_size=1GB" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
     # Only our pass
-    TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/ --xla_enable_hlo_passes_only=split-intermediate-tensors,broadcast-simplifier,dot-order-optimizer,dce" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
+    TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/ --xla_enable_hlo_passes_only=split-intermediate-tensors,broadcast-simplifier,dot-order-optimizer,dce --xla_try_split_tensor_size=1GB" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
     # Disable our hlo pass
     XLA_FLAGS="--xla_disable_hlo_passes=split-intermediate-tensors" python ...
     # Option for setting the split sizes threshold
@@ -174,6 +174,22 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     XLA_FLAGS="--xla_try_split_tensor_size=1GB --xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/" python ./bench.py --warmup 1 --repeat 1 --logdir "./logs/kernel-vector-product/test" -f fp64 kernel-vector-product -k se -a "(100000, 10)" -b "(100000, 10)" -v "(100000, 1)"
     ```
 
+## Building with JAX
+1. Download JAX repo: `git clone https://github.com/google/jax.git`
+2. Check out a compatible version: `git checkout 8c3371c`
+3. Set the modified version of tensorflow in the file `WORKSPACE` in JAX repo
+```
+# (comment out the http archive)
+
+# For development, one can use a local TF repository instead.
+local_repository(
+   name = "org_tensorflow",
+   path = "/mnt/tensorflow",
+)
+```
+4. Run the build: `python build/build.py`
+5. Follow the instructions on screen to install the built wheel for jaxlib
+6. Install jax: `pip install -e .` 
 
 ## References
 

@@ -148,3 +148,4 @@ bench/xla-dump
 *.npy
 
 bench/uci
+jax
