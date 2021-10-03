@@ -104,7 +104,7 @@ class CommandContext:
     xla: bool
 
     def run(self, func_to_run: Callable):
-        fn_compiled = tf.function(func_to_run, experimental_compile=self.xla)
+        fn_compiled = tf.function(func_to_run, jit_compile=self.xla)
 
         def exec_fn():
             res = fn_compiled()
