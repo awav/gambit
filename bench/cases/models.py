@@ -1,5 +1,6 @@
 import gpflow
 import tensorflow as tf
+from wrapt.wrappers import wrap_object_attribute
 from .kernels import create_kernel
 
 import numpy as np
@@ -26,11 +27,12 @@ def create_sgpr_loss_and_grad(dataset_name: str, kernel_name: str, num_ip: int, 
     ip = train_data[0][:num_ip]
     model = gpflow.models.SGPR(train_data, kernel, inducing_variable=ip)
 
-    loss_fn = model.training_loss_closure()
+    loss_fn = model.training_loss_closure(compile=False)
     variables = model.trainable_variables
 
     def loss_and_grad():
-        with tf.GradientTape() as tape:
+        with tf.GradientTape(watch_accessed_variables=False) as tape:
+            tape.watch(variables)
             loss = loss_fn()
         grads = tape.gradient(loss, variables)
         return [loss, *grads]

@@ -20,6 +20,8 @@ from memory_profiler import memory_usage
 cur_dir = str(Path(__file__).expanduser().absolute().parent)
 sys.path.append(cur_dir)
 
+from cases import backends as backends_case
+from cases import dists as dists_example
 from cases import outerprod as outerprod_example
 from cases import kernels as kernels_example
 from cases import tril_solve as tril_solve_example
@@ -102,15 +104,18 @@ class CommandContext:
     warmup: int
     logdir: str
     xla: bool
+    backend: str
 
     def run(self, func_to_run: Callable):
-        fn_compiled = tf.function(func_to_run, jit_compile=self.xla)
+        # fn_compiled = backends_case.jit_compile(self.backend, func_to_run)
+        fn_compiled = func_to_run
+        sync_cpu = lambda value: backends_case.sync_cpu(self.backend, value)
 
         def exec_fn():
             res = fn_compiled()
             if isinstance(res, (list, tuple)):
-                return [r.numpy() for r in res]
-            return res.numpy()
+                return [sync_cpu(r) for r in res]
+            return sync_cpu(res)
 
         gpu_devices = tf.config.get_visible_devices("GPU")
         dev = gpu_devices[0] if gpu_devices else None
@@ -171,6 +176,9 @@ class CommandContext:
 _help_doesntwork = "Does not work at the moment. No action will be applied"
 
 
+frameworks = click.Choice(["tf", "jax"])
+
+
 @click.group()
 @click.option("-f", "--float-type", type=FloatType(), default="fp64")
 @click.option("-m", "--mem-limit", type=MemoryLimit(), default=None, help=_help_doesntwork)
@@ -179,6 +187,7 @@ _help_doesntwork = "Does not work at the moment. No action will be applied"
 @click.option("-w", "--warmup", type=int, default=1, help="Number of warm-up iterations")
 @click.option("-l", "--logdir", type=LogdirPath(), default=__default_gambit_logs)
 @click.option("--xla/--no-xla", default=True, help="Compile function with or without XLA")
+@click.option("-b", "--backend", default="tf", type=frameworks, help="TensorFlow or JAX framework")
 @click.pass_context
 def main(
     ctx: click.Context,
@@ -189,6 +198,7 @@ def main(
     logdir: str,
     seed: int,
     xla: bool,
+    backend: str,
 ):
     cmd_ctx = CommandContext(
         dtype=float_type,
@@ -198,6 +208,7 @@ def main(
         warmup=warmup,
         logdir=logdir,
         xla=xla,
+        backend=backend,
     )
     ctx.obj = cmd_ctx
 
@@ -232,9 +243,7 @@ kernel_choice = click.Choice(["se", "matern32", "linear"])
 @click.option("-b", "--b-shape", type=Shape(), default=None)
 @click.option("-v", "--vector-shape", type=Shape(), required=True)
 @click.pass_context
-def kvp(
-    ctx: click.Context, kernel_name: str, a_shape: Tuple, b_shape: Tuple, vector_shape: Tuple
-):
+def kvp(ctx: click.Context, kernel_name: str, a_shape: Tuple, b_shape: Tuple, vector_shape: Tuple):
     cmd_ctx = ctx.obj
     dim: int = a_shape[-1]
     dtype = cmd_ctx.dtype
@@ -253,9 +262,19 @@ def kvp(
 
     cmd_ctx.run(fn)
 
+
+@main.command()
+@click.option("-d", "--dim", type=int, required=True)
+@click.option("-a", "--a-size", type=int, required=True)
+@click.option("-b", "--b-size", type=int, required=None)
+@click.pass_context
+def dist(ctx: click.Context, dim: int,  a_size: int, b_size: int):
+    cmd_ctx = ctx.obj
+    fn = dists_example.create_dist_function_evaluation(dim, a_size, b_size, cmd_ctx.seed)
+    cmd_ctx.run(fn)
+
+
 # XLA_FLAGS="--xla_try_split_tensor_size=10GB" python ./bench.py --warmup 10 --repeat 100 --logdir "./logs/kvp/fp64-split_10GB_se-500000-10" -f fp64 -r 10 -w 1 kvp -k se -a "(500000, 10)" -b "(500000, 10)" -v "(500000, 1)"
-
-
 @main.command()
 @click.option("-k", "--kernel-name", type=kernel_choice, required=True)
 @click.option("-a", "--a-shape", type=Shape(), required=True)
@@ -311,7 +330,16 @@ def tril_solve(ctx: click.Context, kernel_name: str, matrix_size: int, batch_siz
     cmd_ctx.run(fn)
 
 
-datasets = ["elevators", "pol", "houseelectric", "3droad", "buzz", "keggdirected", "keggundirected", "song"]
+datasets = [
+    "elevators",
+    "pol",
+    "houseelectric",
+    "3droad",
+    "buzz",
+    "keggdirected",
+    "keggundirected",
+    "song",
+]
 dataset_choice = click.Choice(datasets)
 
 
@@ -321,11 +349,15 @@ dataset_choice = click.Choice(datasets)
 @click.option("-m", "--num-inducing-points", type=int, default=1000)
 @click.option("--grad/--no-grad", type=bool, default=True)
 @click.pass_context
-def sgpr(ctx: click.Context, kernel_name: str, dataset_name: str, num_inducing_points: int, grad: bool):
+def sgpr(
+    ctx: click.Context, kernel_name: str, dataset_name: str, num_inducing_points: int, grad: bool
+):
     cmd_ctx = ctx.obj
     dtype = cmd_ctx.dtype
     dataset_name = f"Wilson_{dataset_name}"
-    fn = models_example.create_sgpr_loss_and_grad(dataset_name, kernel_name, num_inducing_points, do_grad=grad)
+    fn = models_example.create_sgpr_loss_and_grad(
+        dataset_name, kernel_name, num_inducing_points, do_grad=grad
+    )
     cmd_ctx.run(fn)
 
 
