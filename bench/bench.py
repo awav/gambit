@@ -7,6 +7,8 @@ _gpu_devices = tf.config.get_visible_devices("GPU")
 _gpu_dev = _gpu_devices[0] if _gpu_devices else None
 
 if _gpu_dev is not None:
+    print(f">>> GPU device information: {_gpu_dev}")
+    print(">>> Set GPU memory growth")
     tf.config.experimental.set_memory_growth(_gpu_dev, True)
 
 
@@ -26,79 +28,14 @@ from cases import outerprod as outerprod_example
 from cases import kernels as kernels_example
 from cases import tril_solve as tril_solve_example
 from cases import models as models_example
+from clitypes import FloatType, LogdirPath
 
 
 __default_gambit_logs = "./default_gambit_logs"
 
-
-class FloatType(click.ParamType):
-    name = "float_type"
-
-    def convert(self, value, param, ctx):
-        options = {"fp32": np.float32, "fp64": np.float64}
-        try:
-            norm_value = value.lower()
-            float_type = options[norm_value]
-            return float_type
-        except Exception as ex:
-            self.fail(f"{value} is not a valid float type [fp32, fp64]", param, ctx)
-
-    def __repr__(self):
-        return "FloatType"
-
-
-class MemoryLimit(click.ParamType):
-    name = "memory_limit"
-
-    def convert(self, value, param, ctx):
-        if value is None:
-            return value
-
-        options = {"mb": 1, "gb": 1024}
-        suffixes = tuple(options.keys())
-        try:
-            if value.lower().endswith(suffixes):
-                return int(value)
-            return int(value)
-        except:
-            self.fail(f"{value} is not a valid float type (allowed fp32, and fp64)", param, ctx)
-
-    def __repr__(self):
-        return "MemoryLimit"
-
-
-class Shape(click.ParamType):
-    name = "shape"
-
-    def convert(self, value, param, ctx):
-        try:
-            values = value.lstrip(" (").rstrip(") ").split(",")
-            values = [int(float(v)) for v in values]
-            return tuple(values)
-        except ValueError:
-            self.fail(f"{value} is not in valid shape format", param, ctx)
-
-    def __repr__(self):
-        return "FloatType"
-
-
-class LogdirPath(click.Path):
-    def __init__(self, mkdir: bool = True, **kwargs):
-        super().__init__(**kwargs)
-        self.mkdir = mkdir
-
-    def convert(self, value, param, ctx):
-        logdir = super().convert(value, param, ctx)
-        logdir_path = Path(logdir).expanduser().resolve()
-        if self.mkdir:
-            logdir_path.mkdir(parents=True, exist_ok=True)
-        return logdir_path
-
-
 @dataclass
 class CommandContext:
     dtype: np.dtype
-    memlimit: int
     seed: int
     repeat: int
     warmup: int
@@ -107,8 +44,8 @@ class CommandContext:
     backend: str
 
     def run(self, func_to_run: Callable):
-        # fn_compiled = backends_case.jit_compile(self.backend, func_to_run)
-        fn_compiled = func_to_run
+        fn_compiled = backends_case.jit_compile(self.backend, func_to_run)
+        # fn_compiled = func_to_run
         sync_cpu = lambda value: backends_case.sync_cpu(self.backend, value)
 
         def exec_fn():
@@ -181,7 +118,6 @@ frameworks = click.Choice(["tf", "jax"])
 
 @click.group()
 @click.option("-f", "--float-type", type=FloatType(), default="fp64")
-@click.option("-m", "--mem-limit", type=MemoryLimit(), default=None, help=_help_doesntwork)
 @click.option("-s", "--seed", type=int, default=None)
 @click.option("-r", "--repeat", type=int, default=1, help="Number of experiment repeatitions")
 @click.option("-w", "--warmup", type=int, default=1, help="Number of warm-up iterations")
@@ -192,7 +128,6 @@ frameworks = click.Choice(["tf", "jax"])
 def main(
     ctx: click.Context,
     float_type: np.dtype,
-    mem_limit: int,
     repeat: int,
     warmup: int,
     logdir: str,
@@ -202,7 +137,6 @@ def main(
 ):
     cmd_ctx = CommandContext(
         dtype=float_type,
-        memlimit=mem_limit,
         seed=seed,
         repeat=repeat,
         warmup=warmup,
@@ -298,7 +232,7 @@ def kvp_grads(
     vt = tf.random.uniform(vector_shape, dtype=dtype)
 
     def fn():
-        return kernels_example.kernel_vector_product(kernel, at, bt, vt)
+        return kernels_example.kernel_vector_product_with_grads(kernel, at, bt, vt)
 
     cmd_ctx.run(fn)
 

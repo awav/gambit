@@ -12,11 +12,12 @@ def get_dataset(name: str):
     dat = getattr(bbd, name)(prop=0.67)
     train, test = (dat.X_train, dat.Y_train), (dat.X_test, dat.Y_test)
     x_train, y_train = _norm_dataset(train)
-    return _to_float(x_train), _to_float(y_train)
+    x_test, y_test = _norm_dataset(test)
+    return (_to_float(x_train), _to_float(y_train)), (_to_float(x_test), _to_float(y_test))
 
 
 def create_sgpr_loss_and_grad(dataset_name: str, kernel_name: str, num_ip: int, dtype=None, do_grad: bool = True):
-    train_data = get_dataset(dataset_name)
+    train_data, test_data = get_dataset(dataset_name)
     x, _ = train_data
     dim = x.shape[-1]
     num = x.shape[0]
@@ -24,8 +25,11 @@ def create_sgpr_loss_and_grad(dataset_name: str, kernel_name: str, num_ip: int, 
     print(f"@@@@@@ Dataset={dataset_name}, size={num}, grad={do_grad}")
 
     kernel = create_kernel(kernel_name, dim, dtype)
-    ip = train_data[0][:num_ip]
-    model = gpflow.models.SGPR(train_data, kernel, inducing_variable=ip)
+    n = train_data[0].shape[0]
+    m_indices = np.random.choice(n, size=num_ip, replace=False)
+    ip = train_data[0][m_indices]
+    train_data_tf = (_to_tf(train_data[0]), _to_tf(train_data[1]))
+    model = gpflow.models.SGPR(train_data_tf, kernel, inducing_variable=ip)
 
     loss_fn = model.training_loss_closure(compile=False)
     variables = model.trainable_variables
@@ -42,8 +46,19 @@ def create_sgpr_loss_and_grad(dataset_name: str, kernel_name: str, num_ip: int, 
     else:
         exec_func = loss_fn
 
-
     return exec_func
+
+
+def create_training_sgpr_procedure():
+    pass
+
+
+def _to_tf(arr: np.ndarray):
+    return tf.convert_to_tensor(arr)
+
+
+def to_tf_data(data):
+    return _to_tf(data[0]), _to_tf(data[1])
 
 
 def _to_float(arr: np.ndarray):
