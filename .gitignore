@@ -149,3 +149,7 @@ bench/xla-dump
 
 bench/uci
 jax
+
+# 
+*.dot
+*.svg
