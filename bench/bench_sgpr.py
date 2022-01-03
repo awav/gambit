@@ -96,38 +96,46 @@ def main(
     metrics_phase_1 = make_metrics_func(model, data_test)
 
     loss_phase_1_jit = tf.function(loss_phase_1, jit_compile=jit)
-    metrics_phase_1_jit = tf.function(metrics_phase_1, jit_compile=jit)
-
     elbo = loss_phase_1_jit().numpy()
-    metric = metrics_phase_1_jit()
-    metric = {k: v.numpy() for (k, v) in metric.items()}
-
     print(f"ELBO after phase 1: {elbo}")
-    print(f"Metrics after phase 1: {metric}")
+
+    run_metric_phase_1 = False
+    run_phase_2 = False
+
+    if not run_metric_phase_1:
+        print(">>> No metrics for Phase 1")
+    else:
+        metrics_phase_1_jit = tf.function(metrics_phase_1, jit_compile=jit)
+        metric = metrics_phase_1_jit()
+        metric = {k: v.numpy() for (k, v) in metric.items()}
+        print(f"Metrics after phase 1: {metric}")
 
     # Phase 2
-    print(">>> Phase 2")
-    iv_phase_2, _ = uniform_greedy_selection(x, max_subset, numips, kernel, noise, 0.001, rng=rng_phase_2)
-    model.inducing_variable.Z.assign(iv_phase_2)
+    if not run_phase_2:
+        print(">>> No Phase 2")
+    else:
+        print(">>> Phase 2")
+        iv_phase_2, _ = uniform_greedy_selection(x, max_subset, numips, kernel, noise, 0.001, rng=rng_phase_2)
+        model.inducing_variable.Z.assign(iv_phase_2)
 
-    set_trainable(model.inducing_variable, True)
-    vars_phase_2 = model.trainable_variables
-    loss_phase_2 = model.training_loss_closure(compile=False)
-    metrics_phase_2 = make_metrics_func(model, data_test)
-    metrics_phase_2_jit = tf.function(metrics_phase_2, jit_compile=jit)
+        set_trainable(model.inducing_variable, True)
+        vars_phase_2 = model.trainable_variables
+        loss_phase_2 = model.training_loss_closure(compile=False)
+        metrics_phase_2 = make_metrics_func(model, data_test)
+        metrics_phase_2_jit = tf.function(metrics_phase_2, jit_compile=jit)
 
-    max_attempts = 4
-    for i in range(max_attempts):
-        print(f">>> Optimizing attempt: [{i}/{max_attempts}]\n")
-        opt = Scipy()
-        res = opt.minimize(loss_phase_2, vars_phase_2, compile=xla_flag, options=dict(maxiter=maxiter))
-        print(res)
-        metric = metrics_phase_2_jit()
-        metric = {k: v.numpy() for (k, v) in metric.items()}
-        print(f"Metrics after phase 2: {metric}")
+        max_attempts = 4
+        for i in range(max_attempts):
+            print(f">>> Optimizing attempt: [{i}/{max_attempts}]\n")
+            opt = Scipy()
+            res = opt.minimize(loss_phase_2, vars_phase_2, compile=xla_flag, options=dict(maxiter=maxiter))
+            print(res)
+            metric = metrics_phase_2_jit()
+            metric = {k: v.numpy() for (k, v) in metric.items()}
+            print(f"Metrics after phase 2: {metric}")
 
-        if res.nit < 2:
-            break
+            if res.nit < 2:
+                break
 
 
 def make_metrics_func(model, data):

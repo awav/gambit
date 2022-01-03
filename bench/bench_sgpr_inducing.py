@@ -33,6 +33,8 @@ __default_gambit_logs = "./default_gambit_logs"
 __datasets = click.Choice(["houseelectric", "song", "buzz", "3droad", "keggundirected"])
 
 
+# XLA_FLAGS="--xla_try_split_tensor_size=1GB" TF_GPU_ALLOCATOR=cuda_malloc_async python bench_sgpr.py -n 100 -m 2000 -s 999 -d song
+
 # XLA_FLAGS="--xla_try_split_tensor_size=100MB --xla_enable_hlo_passes_only=split-intermediate-tensors,broadcast-simplifier,dce,cholesky_expander,triangular_solve_expander,bitcast_dtypes_expander --xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-test-100m" python bench_matmul.py -s 999 -n 1000753 -d 1000
 
 # XLA_FLAGS="--xla_try_split_tensor_size=100MB" python bench_matmul.py -s 999 -n 1000753 -d 1000

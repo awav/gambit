@@ -1,0 +1,8 @@
+TF_CPP_MIN_LOG_LEVEL=0 CUDA_VISIBLE_DEVICES="3" DUMPDIR="xla-knn-l2-uneven" XLA_FLAGS="--xla_try_split_tensor_size=100MB --xla_dump_hlo_as_dot --xla_dump_to=${DUMPDIR} --xla_enable_hlo_passes_only=split-intermediate-tensors,algebraic-rewriter,dce,broadcast-simplifier,cholesky_expander,triangular_solve_expander,bitcast_dtypes_expander,CallInliner,gpu_scatter_expander,rce-optimizer" python exp_knn.py -d random_n10000111_m10_d10 -k 10 -r 1 -w 1 -s 111 -c L2
+
+TF_CPP_MIN_LOG_LEVEL=0 CUDA_VISIBLE_DEVICES="3" DUMPDIR="xla-knn-l2" XLA_FLAGS="--xla_try_split_tensor_size=100MB --xla_dump_hlo_as_dot --xla_dump_to=${DUMPDIR} --xla_enable_hlo_passes_only=split-intermediate-tensors,algebraic-rewriter,dce,broadcast-simplifier,cholesky_expander,triangular_solve_expander,bitcast_dtypes_expander,CallInliner,gpu_scatter_expander,rce-optimizer" python exp_knn.py -d random_n10000000_m10000_d100 -k 10 -r 1 -w 1 -s 111 -c L2
+
+TF_CPP_MIN_LOG_LEVEL=0 CUDA_VISIBLE_DEVICES="3" DUMPDIR="xla-knn-l1" XLA_FLAGS="--xla_try_split_tensor_size=100MB --xla_dump_hlo_as_dot --xla_dump_to=${DUMPDIR} --xla_enable_hlo_passes_only=split-intermediate-tensors,algebraic-rewriter,dce,broadcast-simplifier,cholesky_expander,triangular_solve_expander,bitcast_dtypes_expander,CallInliner,gpu_scatter_expander,rce-optimizer" python exp_knn.py -d random_n10000000_m10000_d100 -k 10 -r 1 -w 1 -s 111 -c L1
+
+
+CUDA_VISIBLE_DEVICES="3" XLA_FLAGS="--xla_try_split_tensor_size=1GB" python exp_knn.py -d random_n10000000_m10000_d100 -k 10 -r 1 -w 1 -s 111
