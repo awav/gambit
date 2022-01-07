@@ -13,7 +13,7 @@ cur_dir = str(Path(__file__).expanduser().absolute().parent)
 sys.path.append(cur_dir)
 
 from clitypes import FloatType, LogdirPath
-from cases.models import get_dataset, to_tf_data
+from bench_utils import tf_data_tuple, get_uci_dataset
 from barelybiasedgp.selection import uniform_greedy_selection
 from barelybiasedgp.scipy_copy import Scipy
 
@@ -33,14 +33,7 @@ __default_gambit_logs = "./default_gambit_logs"
 __datasets = click.Choice(["houseelectric", "song", "buzz", "3droad", "keggundirected"])
 
 
-# XLA_FLAGS="--xla_try_split_tensor_size=100MB --xla_enable_hlo_passes_only=split-intermediate-tensors,broadcast-simplifier,dce,cholesky_expander,triangular_solve_expander,bitcast_dtypes_expander --xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-test-100m" python bench_matmul.py -s 999 -n 1000753 -d 1000
-
-# XLA_FLAGS="--xla_try_split_tensor_size=100MB" python bench_matmul.py -s 999 -n 1000753 -d 1000
-# XLA_FLAGS="--xla_try_split_tensor_size=10GB" python bench_matmul.py -s 999 -n 1000753 -d 1000
-
-# XLA_FLAGS="--xla_try_split_tensor_size=100MB" python bench_matmul.py -s 999 -n 1000753 -d 1000
-# XLA_FLAGS="--xla_try_split_tensor_size=10GB" python bench_matmul.py -s 999 -n 1000753 -d 1000
-
+# XLA_FLAGS="--xla_try_split_tensor_size=100MB" python bench_sgpr_test.py -s 0 -m 1000
 
 
 @click.command()
@@ -63,15 +56,14 @@ def main(
     tf.random.set_seed(seed)
 
     xla_flag = "xla" if jit else None
-    data, data_test = get_dataset(f"Wilson_{dataset_name}")
+    data, data_test = get_uci_dataset(dataset_name)
     x, y = data
-    # x, y = x[:37500], y[:37500]
     data = x, y
     num_data = x.shape[0]
     dim_data = x.shape[-1]
 
-    tf_data = to_tf_data(data)
-    tf_data_test = to_tf_data(data_test)
+    tf_data = tf_data_tuple(data)
+    tf_data_test = tf_data_tuple(data_test)
 
     noise = 0.1
     max_subset = 10000

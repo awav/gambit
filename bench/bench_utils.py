@@ -3,6 +3,7 @@ from operator import iconcat
 from typing import Any, Callable, Dict, Sequence, Tuple, Union
 import numpy as np
 import tensorflow as tf
+from gpflow.config import default_float
 import h5py
 import re
 import glob
@@ -12,6 +13,8 @@ from dataclasses import dataclass
 from time import time
 from pathlib import Path
 from memory_profiler import memory_usage
+import bayesian_benchmarks.data as bbd
+
 
 FilePath = Union[Path, str]
 
@@ -26,12 +29,11 @@ class BenchRunner:
         gpu_devices = tf.config.get_visible_devices("GPU")
         if len(gpu_devices) > 1:
             raise RuntimeError("Expected one GPU")
-        
+
         if not callable(prepare_args):
             prepare_args_fn = lambda: prepare_args
         else:
             prepare_args_fn = prepare_args
-
 
         gpu_dev = gpu_devices[0] if gpu_devices else None
         if gpu_dev is not None:
@@ -84,7 +86,9 @@ class BenchRunner:
 
 
 def parse_name(name: str):
-    splits = name.split("_")[1:]
+    splits = name.split("_")
+    header = splits[0]
+    rest = splits[1:]
     re_compiled = re.compile(r"^([a-zA-Z]+)(\d+)$")
 
     def process(elem):
@@ -95,26 +99,20 @@ def parse_name(name: str):
         value = match.group(2)
         return key, value
 
-    return dict([process(s) for s in splits])
+    return {"name": header, **dict([process(s) for s in splits])}
 
 
 def store_dict_as_h5(data: Dict, filepath: FilePath):
     with h5py.File(filepath, mode="w") as writer:
-        for k, v in data.items():
-            if isinstance(v, str):
-                v = np.array(v, dtype="S")
-            elif isinstance(v, int):
-                v = np.array(v, dtype=int)
-            else:
-                v = np.array(v)
-            writer.create_dataset(k, data=v)
+        for root_key, root_value in data.items():
+            store_hdf_value(writer, root_key, root_value)
 
 
 def read_h5_into_dict(filepath: FilePath) -> Dict:
     data = {}
     with h5py.File(filepath) as reader:
-        for k in reader.keys():
-            data[k] = read_hdf_value(reader, k)
+        for key in reader.keys():
+            read_hdf_value(data, reader, key)
     return data
 
 
@@ -122,8 +120,35 @@ def read_h5(filepath: FilePath) -> h5py.File:
     return h5py.File(filepath)
 
 
-def read_hdf_value(hdf: h5py.File, key: str):
+HdfStruct = Union[h5py.File, h5py.Group]
+
+
+def store_hdf_value(writer: HdfStruct, key: str, value: Any):
+    if isinstance(value, dict):
+        for sub_key, sub_value in value.items():
+            if not isinstance(sub_key, str):
+                raise NotImplementedError(f"String keys allowed only. {sub_key} passed")
+            store_hdf_value(writer, f"{key}/{sub_key}", sub_value)
+        return
+
+    if isinstance(value, str):
+        value = np.array(value, dtype="S")
+    elif isinstance(value, int):
+        value = np.array(value, dtype=int)
+    else:
+        value = np.array(value)
+
+    writer.create_dataset(key, data=value)
+
+
+def read_hdf_value(out_dict: Dict[str, Any], hdf: HdfStruct, key: str):
     def _convert(value: Any):
+        if isinstance(value, h5py.Group):
+            sub_out_dict = {}
+            for sub_key in value.keys():
+                read_hdf_value(sub_out_dict, value, sub_key)
+            return sub_out_dict
+
         if value.dtype.kind == "S":
             return str(np.array(value, dtype="U"))
         elif value.dtype.kind == "i" and value.shape == ():
@@ -134,13 +159,13 @@ def read_hdf_value(hdf: h5py.File, key: str):
 
     value = hdf.get(key)
     result = _convert(value)
-    return result
+    out_dict[key] = result
 
 
 def select_from_report_data(
     filepaths: Sequence[FilePath],
     join_by: Union[Sequence[str], Dict],
-    select_field: str,
+    select_fields: Sequence[str],
 ) -> Dict:
     store_at = dict()
     for filepath in filepaths:
@@ -158,12 +183,50 @@ def select_from_report_data(
             continue
         tuple_key = tuple([data[key] for key in join_by])
         if tuple_key not in store_at:
-            store_at[tuple_key] = [data[select_field]]
+            fields_init = {field: [data[field]] for field in select_fields}
+            store_at[tuple_key] = fields_init
         else:
-            store_at[tuple_key].append(data[select_field])
+            fields = store_at[tuple_key]
+            fields_update = {field: values + [data[field]] for field, values in fields}
+            store_at[tuple_key] = fields_update
     return store_at
 
 
 def expand_paths_with_wildcards(filepaths: Sequence[str]) -> Sequence[str]:
     full_list = [glob.glob(f) for f in filepaths]
     return list(reduce(iconcat, full_list, []))
+
+
+def get_uci_dataset(name: str, seed: int):
+    full_name = f"Wilson_{name}"
+    dat = getattr(bbd, full_name)(prop=0.67)
+    train, test = (dat.X_train, dat.Y_train), (dat.X_test, dat.Y_test)
+    x_train, y_train = _norm_dataset(train)
+    x_test, y_test = _norm_dataset(test)
+    train = _to_gpflow_default_float(x_train), _to_gpflow_default_float(y_train)
+    test = _to_gpflow_default_float(x_test), _to_gpflow_default_float(y_test)
+    return train, test
+
+
+def _norm(x: np.ndarray) -> np.ndarray:
+    """Normalise array with mean and variance."""
+    mu = np.mean(x, axis=0, keepdims=True)
+    std = np.std(x, axis=0, keepdims=True) + 1e-9
+    return (x - mu) / std
+
+
+def _norm_dataset(data):
+    """Normalise dataset tuple."""
+    return _norm(data[0]), _norm(data[1])
+
+
+def _to_gpflow_default_float(arr: np.ndarray):
+    return arr.astype(default_float())
+
+
+def to_tf_scope(arr: np.ndarray):
+    return tf.convert_to_tensor(arr)
+
+
+def tf_data_tuple(data):
+    return to_tf_scope(data[0]), to_tf_scope(data[1])

@@ -25,14 +25,14 @@ curdir = str(Path(__file__).expanduser().absolute().parent)
 sys.path.append(curdir)
 
 from clitypes import LogdirPath
-from bench_utils import BenchRunner, store_dict_as_h5, parse_name
+from bench_utils import BenchRunner, read_h5_into_dict, store_dict_as_h5, parse_name
 
 Backend = Literal["jax", "keops"]
 Distance = Literal["L2", "L1", "cosine"]
 PathLike = Union[Path, str]
 
 
-__default_logdir = Path(curdir, "logs_default")
+__default_logdir = Path(curdir, "logs_knn_default")
 __download_dir = "~/.datasets"
 
 backend_choices = click.Choice(["jax", "keops"])
@@ -113,9 +113,6 @@ def create_exp_knn(backend: Backend, k: int, distance: Distance) -> Callable:
 
 
 def create_exp_args(backend: Backend, dataset: str, seed: int):
-    args_fn = None
-    dataset_name = None
-    conf = None
     if dataset.startswith("random"):
         conf = parse_name(dataset)
         dtype = np.float32
@@ -123,7 +120,7 @@ def create_exp_args(backend: Backend, dataset: str, seed: int):
         m = int(conf["m"])
         d = int(conf["d"])
         conf = {"dataset_size": n, "query_size": m, "dim_size": d}
-        dataset_name = "random"
+        dataset_name: Literal["random"] = "random"
         rng = np.random.RandomState(seed)
 
         def random_args_fn():
@@ -133,18 +130,27 @@ def create_exp_args(backend: Backend, dataset: str, seed: int):
 
         args_fn = random_args_fn
 
-    elif dataset.startswith("mnist"):
+    elif dataset.startswith("mnist") or dataset.startswith("fashion"):
         import torchvision
 
         conf = parse_name(dataset)
-        mnist = torchvision.datasets.MNIST(__download_dir, download=True)
-        data_points = np.array(mnist.data.cpu().numpy(), dtype=np.float32)
+        dataset_name: Literal["mnist", "fashion"] = conf["name"]
+
+        dataset_classes = {
+            "mnist": torchvision.datasets.MNIST,
+            "fashion": torchvision.datasets.FashionMNIST,
+        }
+        if dataset_name not in dataset_classes:
+            raise RuntimeError(f"Unknown parsed dataset name: {dataset_name}")
+
+        dataset_class = dataset_classes[dataset_name]
+        ds = dataset_class(__download_dir, download=True)
+        data_points = np.array(ds.data.cpu().numpy(), dtype=np.float32)
         data_points /= 255.0
         n = data_points.shape[0]
         data_points = data_points.reshape(n, -1)
         d = data_points.shape[-1]
         m = int(conf["m"])
-        dataset_name = "mnist"
         query_indices = np.random.choice(data_points.shape[0], size=m)
         query_points = data_points[query_indices, ...]
 
@@ -152,10 +158,28 @@ def create_exp_args(backend: Backend, dataset: str, seed: int):
             return data_points, query_points
 
         args_fn = mnist_args_fn
+    elif dataset.startswith("glove"):
+        datasets = {"glove-50", "glove-100", "glove-200"}
+        if dataset not in datasets:
+            raise RuntimeError(f"Unknown dataset name: {dataset}")
+        dataset_name = dataset
+        # TODO(awav): change hard-coded path to the directory
+        glove_dirpath = Path("~/code/ann-benchmarks/data").expanduser().resolve()
+        glove_filepath = Path(glove_dirpath, f"{dataset_name}-angular.hdf5")  
+        dataset_dict = read_h5_into_dict(glove_filepath)
+        data_points = dataset_dict["train"]
+        query_points = dataset_dict["test"]
 
+        def glove_args_fn():
+            return data_points, query_points
+        
+        args_fn = glove_args_fn
     else:
         raise NotImplementedError(f"Uknown dataset passed: {dataset}")
 
+    n: int = data_points.shape[0]
+    d: int = data_points.shape[-1]
+    m: int = query_points.shape[0]
     conf = {"dataset_size": n, "query_size": m, "dim_size": d}
 
     if backend == "jax":

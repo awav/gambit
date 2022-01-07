@@ -17,7 +17,7 @@ def churn_speed_table(files):
     expanded_files = expand_paths_with_wildcards(files)
     cols = ["dataset_name", "distance", "dataset_size", "dim_size"]
     join_by = ["dataset", "query_size", "backend", *cols]
-    data = select_from_report_data(expanded_files, join_by, "elapsed_stats")
+    data = select_from_report_data(expanded_files, join_by, ["elapsed_stats"])
 
     backend_id = join_by.index("backend")
     backends = list(set([tuple_key[backend_id] for tuple_key, _ in data.items()]))
@@ -27,7 +27,8 @@ def churn_speed_table(files):
 
     rows = {}
 
-    for tuple_key, values in data.items():
+    for tuple_key, selected_values in data.items():
+        values = selected_values["elapsed_stats"]
         i = backend_id + 1
         _, query_size, backend = tuple_key[:i]
         row_key = tuple_key[i:]
