@@ -99,7 +99,7 @@ def parse_name(name: str):
         value = match.group(2)
         return key, value
 
-    return {"name": header, **dict([process(s) for s in splits])}
+    return {"name": header, **dict([process(s) for s in rest])}
 
 
 def store_dict_as_h5(data: Dict, filepath: FilePath):

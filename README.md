@@ -174,6 +174,45 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     XLA_FLAGS="--xla_try_split_tensor_size=1GB --xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/" python ./bench.py --warmup 1 --repeat 1 --logdir "./logs/kernel-vector-product/test" -f fp64 kernel-vector-product -k se -a "(100000, 10)" -b "(100000, 10)" -v "(100000, 1)"
     ```
 
+
+## TensorFlow local compiling
+
+1. 
+    ```bash
+    git clone git@github.com:awav/gambit.git
+    cd gambit
+    git submodule init && git submodule update
+    ```
+
+2. Install bazelisk https://github.com/bazelbuild/bazelisk/releases
+    Install it as the bazel binary in your `PATH` (e.g. copy it to `/usr/local/bin/bazel`). Never worry about upgrading Bazel to the latest version again.
+
+3. Pip installations (surprize, surprize!)
+    ```
+    pip install -y numpy keras_preprocessing
+    ```
+
+3. 
+    ```
+    TF_PIP_PATH=~/.local/tf-pip
+    rm -rf $TF_PIP_PATH &&
+    bazel build //tensorflow/tools/pip_package:build_pip_package --config=cuda &&
+    ./bazel-bin/tensorflow/tools/pip_package/build_pip_package $TF_PIP_PATH &&
+    pip uninstall tensorflow tensorflow-estimator &&
+    pip install -U $TF_PIP_PATH/tensorflow-*.whl
+    ```
+
+## JAX local compiling
+
+    ```
+    CUDA_VERSION=11.2
+    JAX_DIST=/home/artem/code/jax/dist
+    rm -rf $JAX_DIST/jaxlib-*.whl &&
+    python build/build.py --enable_cuda --cuda_version=$CUDA_VERSION &&
+    pip install --force-reinstall $JAX_DIST/jaxlib-*.whl &&
+    pip install -e .
+    ```
+
 ## Building with JAX
 1. Download JAX repo: `git clone https://github.com/google/jax.git`
 2. Check out a compatible version: `git checkout 8c3371c`
