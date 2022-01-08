@@ -113,20 +113,24 @@ def create_exp_knn(backend: Backend, k: int, distance: Distance) -> Callable:
 
 
 def create_exp_args(backend: Backend, dataset: str, seed: int):
+    data_points = None
+    query_points = None
+    conf = {}
+
     if dataset.startswith("random"):
-        conf = parse_name(dataset)
+        parsed_conf = parse_name(dataset)
         dtype = np.float32
-        n = int(conf["n"])
-        m = int(conf["m"])
-        d = int(conf["d"])
+        n = int(parsed_conf["n"])
+        m = int(parsed_conf["m"])
+        d = int(parsed_conf["d"])
         conf = {"dataset_size": n, "query_size": m, "dim_size": d}
         dataset_name: Literal["random"] = "random"
         rng = np.random.RandomState(seed)
 
         def random_args_fn():
-            data_points = np.array(rng.randn(n, d), dtype=dtype)
-            query_points = np.array(rng.randn(m, d), dtype=dtype)
-            return data_points, query_points
+            rnd_data_points = np.array(rng.randn(n, d), dtype=dtype)
+            rnd_query_points = np.array(rng.randn(m, d), dtype=dtype)
+            return rnd_data_points, rnd_query_points
 
         args_fn = random_args_fn
 
@@ -177,10 +181,15 @@ def create_exp_args(backend: Backend, dataset: str, seed: int):
     else:
         raise NotImplementedError(f"Uknown dataset passed: {dataset}")
 
-    n: int = data_points.shape[0]
-    d: int = data_points.shape[-1]
-    m: int = query_points.shape[0]
-    conf = {"dataset_size": n, "query_size": m, "dim_size": d}
+
+    if data_points is not None:
+        n: int = data_points.shape[0]
+        d: int = data_points.shape[-1]
+        conf = {"dataset_size": n, "dim_size": d}
+    
+    if query_points is not None:
+        m: int = query_points.shape[0]
+        conf = {**conf, "query_size": m}
 
     if backend == "jax":
         return dataset_name, conf, prepare_jax_args_fn(args_fn)
