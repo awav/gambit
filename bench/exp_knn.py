@@ -35,7 +35,7 @@ PathLike = Union[Path, str]
 __default_logdir = Path(curdir, "logs_knn_default")
 __download_dir = "~/.datasets"
 
-backend_choices = click.Choice(["jax", "keops"])
+backend_choices = click.Choice(["jax", "keops", "tf"])
 distance_choices = click.Choice(["L2", "L1", "cosine"])
 
 
@@ -95,7 +95,7 @@ def main(
 
 
 def prepare_backend(backend: Backend, logdir: PathLike):
-    if backend == "jax":
+    if backend == "jax" or backend == "tf":
         return
     elif backend == "keops":
         pykeops.set_bin_folder(str(Path(logdir, "keops")))
@@ -109,6 +109,8 @@ def create_exp_knn(backend: Backend, k: int, distance: Distance) -> Callable:
         return prepare_jax_knn(k, distance)
     elif backend == "keops":
         return prepare_keops_knn(k, distance)
+    elif backend == "tf":
+        return prepare_tf_knn(k, distance)
     raise NotImplementedError(f"Uknown backend passed: {backend}")
 
 
@@ -169,24 +171,23 @@ def create_exp_args(backend: Backend, dataset: str, seed: int):
         dataset_name = dataset
         # TODO(awav): change hard-coded path to the directory
         glove_dirpath = Path("~/code/ann-benchmarks/data").expanduser().resolve()
-        glove_filepath = Path(glove_dirpath, f"{dataset_name}-angular.hdf5")  
+        glove_filepath = Path(glove_dirpath, f"{dataset_name}-angular.hdf5")
         dataset_dict = read_h5_into_dict(glove_filepath)
         data_points = dataset_dict["train"]
         query_points = dataset_dict["test"]
 
         def glove_args_fn():
             return data_points, query_points
-        
+
         args_fn = glove_args_fn
     else:
         raise NotImplementedError(f"Uknown dataset passed: {dataset}")
-
 
     if data_points is not None:
         n: int = data_points.shape[0]
         d: int = data_points.shape[-1]
         conf = {"dataset_size": n, "dim_size": d}
-    
+
     if query_points is not None:
         m: int = query_points.shape[0]
         conf = {**conf, "query_size": m}
@@ -195,8 +196,97 @@ def create_exp_args(backend: Backend, dataset: str, seed: int):
         return dataset_name, conf, prepare_jax_args_fn(args_fn)
     elif backend == "keops":
         return dataset_name, conf, prepare_keops_args_fn(args_fn)
+    elif backend == "tf":
+        return dataset_name, conf, prepare_tf_args_fn(args_fn)
 
     raise NotImplementedError(f"Uknown backend passed: {backend}")
+
+
+# TF implementation
+
+
+def prepare_tf_knn(k: int, distance: Distance):
+    knn_funcs = {
+        "L2": knn_l2_tf,
+        "L1": knn_l1_tf,
+        "cosine": knn_cosine_tf,
+    }
+    chosen_knn = knn_funcs[distance]
+
+    def knn_func(*args, **kwargs):
+        return chosen_knn(*args, k=k, **kwargs)
+
+    knn_func_jit = tf.function(knn_func, jit_compile=True)
+
+    def _func(*args, **kwargs):
+        result = knn_func_jit(*args, **kwargs)
+        if isinstance(result, (list, tuple)):
+            return [r.numpy() for r in result]
+        return result.numpy()
+
+    return _func
+
+
+def prepare_tf_args_fn(args_fn):
+    ctt = tf.convert_to_tensor
+
+    def jax_args_fn():
+        args = args_fn()
+        return [ctt(arg) for arg in args]
+
+    return jax_args_fn
+
+
+def knn_l2_tf(data_points, query_points, k: int = 10):
+    """
+    Args:
+        data_points: [N, D] tensor
+        query_points: [M, D] tensor
+    Return:
+        L2 distance matrix
+    """
+    x2 = tf.reduce_sum(data_points ** 2, axis=-1)
+    y2 = tf.reduce_sum(query_points ** 2, axis=-1)
+    xy = tf.matmul(data_points, query_points, transpose_b=True)
+
+    distances = x2[:, None] - 2.0 * xy + y2[None, :]
+    distances_t = tf.transpose(distances)
+    _, topk_indices = tf.math.top_k(-distances_t, k)
+    return topk_indices
+
+
+def knn_l1_tf(data_points, query_points, k: int = 10):
+    """
+    Args:
+        data_points: [N, D] tensor
+        query_points: [M, D] tensor
+    Return:
+        L1 distance matrix
+    """
+    abs_distances = tf.math.abs(data_points[:, None, :] - query_points[None, :, :])
+    distances = tf.reduce_sum(abs_distances, axis=-1)
+    distances_t = tf.transpose(distances)
+    _, topk_indices = jax.lax.top_k(-distances_t, k)
+    return topk_indices
+
+
+def knn_cosine_tf(data_points, query_points, k: int = 10):
+    """
+    Args:
+        data_points: [N, D] tensor
+        query_points: [M, D] tensor
+    Return:
+        Angular distance matrix
+    """
+    xy_dot = data_points @ query_points.T
+    xy_dot = tf.matmul(data_points, query_points, transpose_b=True)
+    x_norm = tf.reduce_sum(data_points ** 2, axis=-1)
+    y_norm = tf.reduce_sum(query_points ** 2, axis=-1)
+    norms = tf.math.sqrt(x_norm[:, None] * y_norm)
+    distances = 1.0 - xy_dot / norms
+    distances_t = tf.transpose(distances)
+    _, topk_indices = tf.math.top_k(-distances_t, k)
+    return topk_indices
 
 
 # JAX implementation

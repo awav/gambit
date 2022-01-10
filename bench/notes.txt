@@ -22,3 +22,8 @@ CUDA_VISIBLE_DEVICES="3" XLA_FLAGS="--xla_try_split_tensor_size=1GB" python exp_
 # SGPR
 
 XLA_FLAGS="--xla_try_split_tensor_size=100MB" python bench_sgpr_test.py -s 0 -m 1000
+
+
+# JAX. Trax
+
+TF_CPP_MIN_LOG_LEVEL=0 CUDA_VISIBLE_DEVICES="3" XLA_FLAGS="--xla_try_split_tensor_size=1GB" python -m trax.trainer --config_file=trax/trax/supervised/configs/reformer_imagenet64.gin
