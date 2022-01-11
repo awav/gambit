@@ -186,7 +186,7 @@ def select_from_report_data(
             fields_init = {field: [data[field]] for field in select_fields}
             store_at[tuple_key] = fields_init
         else:
-            fields = store_at[tuple_key]
+            fields = store_at[tuple_key].items()
             fields_update = {field: values + [data[field]] for field, values in fields}
             store_at[tuple_key] = fields_update
     return store_at

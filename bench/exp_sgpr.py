@@ -1,6 +1,7 @@
 from functools import partial
 import sys
 import json
+from scipy.optimize import OptimizeResult
 from pathlib import Path
 from typing import Callable, Optional, Union, Tuple, NamedTuple, Dict
 from typing_extensions import Literal
@@ -107,6 +108,7 @@ def main(
     monitor = create_monitor(holdout_interval, logdir, funcs=funcs)
 
     train_vars = model.trainable_variables
+    opt_logs = {}
     for ph in range(num_phases):
         print(f"---> Phase {ph}")
         rng = np.random.RandomState(seed)
@@ -121,6 +123,8 @@ def main(
             options=scipy_options,
         )
 
+        update_optimizer_logs(res, opt_logs)
+
         if res.nit < 2:
             print(
                 f"---> Break training loop after phase {ph}."
@@ -130,6 +134,9 @@ def main(
 
         print("-> optimisation result:")
         print(res)
+    
+    opt_path = Path(logdir, "opt.h5")
+    store_dict_as_h5(opt_logs, opt_path)
 
     logs = monitor.collect_logs()
     param_path = Path(logdir, "param.h5")
@@ -140,7 +147,7 @@ def main(
         metric_path = Path(logdir, "metric.h5")
         store_dict_as_h5(logs[metric_key], metric_path)
         info_extension = {f"{param_key}_path": str(metric_path), **info_extension}
-    
+
     final_metric = numpy_results(monitor_metric_fn)
     info_extension = {"final_metric": final_metric, **info_extension}
     info_extended = {**info, **info_extension}
@@ -194,6 +201,20 @@ def compile_function(fn: Callable, compile_type: CompileType) -> Callable:
     elif compile_type == "tf":
         return tf.function(fn)
     return fn
+
+
+def update_optimizer_logs(res: OptimizeResult, store: Dict):
+    values = {
+        "status": [res.status],
+        "nit": [res.nit],
+        "nfev": [res.nfev],
+        "objective": [res.fun],
+    }
+
+    if store == {}:
+        store.update(values.items())
+
+    store.update({key: value + values[key] for key, value in store.items()})
 
 
 def create_monitor(

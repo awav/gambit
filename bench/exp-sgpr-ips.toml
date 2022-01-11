@@ -2,16 +2,18 @@
 cmd = 'python ./exp_sgpr.py --logdir "{uid}"'
 
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -d {dataset} -m {numips} -ni {maxiters} -np {numphases}'
-uid = './{rootdir}/{name}/{dataset}/{limit}/sgpr_ips{numips}_np{numphases}_ni{maxiters}'
+cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -s {seed} -d {dataset} -m {numips} -ni {maxiters} -np {numphases}'
+uid = './{rootdir}/{name}/{dataset}/{limit}/sgpr_ips{numips}_np{numphases}_ni{maxiters}/{seed}'
 
 name = "ips"
 limit = "1GB"
 rootdir = "logs_sgpr"
 # dataset = ["keggundirected"]
+seed = [111, 222]
 dataset = ["kin40k"]
-numips = [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
-numphases = 10
+# numips = [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
+numips = [500, 1000, 2000]
+numphases = 4
 maxiters = 1000  # per phase
 
 [flags]
