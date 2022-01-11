@@ -80,7 +80,20 @@ def metric_vs_numips(files):
         test_rmse_mu, test_rmse_std = zip(*test_rmse)
         test_rmse_mu = np.array(test_rmse_mu)
         test_rmse_std = np.array(test_rmse_std)
-        ax.plot(ips_sorted_unique, test_rmse_mu)
+
+        line = ax.plot(ips_sorted_unique, test_rmse_mu)
+        color = line[0].get_color()
+
+        for i, ip in enumerate(ips_sorted_unique):
+            mu = test_rmse_mu[i]
+            std = test_rmse_std[i]
+            mu_min, mu_max = (mu - std), (mu + std)
+            s = 10
+            ip_min = ip - s
+            ip_max = ip + s
+            ax.vlines(ip, mu_min, mu_max, color=color)
+            ax.hlines(mu_min, ip_min, ip_max)
+            ax.hlines(mu_max, ip_min, ip_max)
 
         print(f"-> key={key}")
         print(f"=> ips={ips_sorted}")
@@ -89,6 +102,7 @@ def metric_vs_numips(files):
         print(f"=> combined={combined}")
         print(f"=> avg={avg}")
         print(f"=> test_rmse_mu={test_rmse_mu}")
+        print(f"=> test_rmse_std={test_rmse_std}")
 
     plt.tight_layout()
     plt.show()

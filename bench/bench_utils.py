@@ -150,7 +150,7 @@ def read_hdf_value(out_dict: Dict[str, Any], hdf: HdfStruct, key: str):
             return sub_out_dict
 
         if value.dtype.kind == "S":
-            return str(np.array(value, dtype="U"))
+            return bytes(np.array(value)).decode()
         elif value.dtype.kind == "i" and value.shape == ():
             return int(np.array(value))
         elif value.dtype.kind == "f" and value.shape == ():
