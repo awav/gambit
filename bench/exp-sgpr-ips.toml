@@ -9,11 +9,10 @@ name = "ips"
 limit = "1GB"
 rootdir = "logs_sgpr"
 # dataset = ["keggundirected"]
-seed = [111, 222]
+seed = [111, 222, 333, 444, 555]
 dataset = ["kin40k"]
-# numips = [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
-numips = [500, 1000, 2000]
-numphases = 4
+numips = [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
+numphases = 10
 maxiters = 1000  # per phase
 
 [flags]
