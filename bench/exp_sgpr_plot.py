@@ -94,6 +94,7 @@ def metric_vs_numips(files):
             ax.vlines(ip, mu_min, mu_max, color=color)
             ax.hlines(mu_min, ip_min, ip_max)
             ax.hlines(mu_max, ip_min, ip_max)
+            ax.set_xticks(ips_sorted_unique)
 
         print(f"-> key={key}")
         print(f"=> ips={ips_sorted}")
