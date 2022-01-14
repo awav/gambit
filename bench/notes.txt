@@ -1,7 +1,7 @@
 ##### Build TensorFlow
 
 STORAGE_PATH=~/Storage/tf-cuda11.2
-rm -rf $STORAGE_PATH && bazel build //tensorflow/tools/pip_package:build_pip_package --config=cuda && ./bazel-bin/tensorflow/tools/pip_package/build_pip_package $STORAGE_PATH && pip uninstall tensorflow tensorflow-estimator && pip install -U $STORAGE_PATH/tensorflow-*.whl
+bazel build //tensorflow/tools/pip_package:build_pip_package --config=cuda && rm -rf $STORAGE_PATH && ./bazel-bin/tensorflow/tools/pip_package/build_pip_package $STORAGE_PATH && pip uninstall tensorflow tensorflow-estimator && pip install -U $STORAGE_PATH/tensorflow-*.whl
 
 ##### Build JAX
 
@@ -22,6 +22,10 @@ CUDA_VISIBLE_DEVICES="3" XLA_FLAGS="--xla_try_split_tensor_size=1GB" python exp_
 # SGPR
 
 XLA_FLAGS="--xla_try_split_tensor_size=100MB" python bench_sgpr_test.py -s 0 -m 1000
+
+TF_CPP_MIN_LOG_LEVEL=0 CUDA_VISIBLE_DEVICES="3" DUMPDIR="xla-sgpr" XLA_FLAGS="--xla_try_split_tensor_size=1GB --xla_dump_hlo_as_dot --xla_dump_to=${DUMPDIR} --xla_enable_hlo_passes_only=split-intermediate-tensors,algebraic-rewriter,dce,broadcast-simplifier,cholesky_expander,triangular_solve_expander,bitcast_dtypes_expander,CallInliner,gpu_scatter_expander,rce-optimizer" python exp_sgpr_iter_speed.py -m 1000 -d houseelectric
+
+TF_CPP_MIN_LOG_LEVEL=0 XLA_FLAGS="--xla_try_split_tensor_size=1GB" python exp_sgpr_iter_speed.py -m 1000 -d houseelectric
 
 
 # JAX. Trax

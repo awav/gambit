@@ -1,3 +1,4 @@
+from types import ClassMethodDescriptorType
 from typing import Callable, Sequence, Union, Dict, Tuple
 from pathlib import Path
 import tensorflow as tf
@@ -25,7 +26,7 @@ class Monitor:
     @property
     def writer(self) -> SummaryWriter:
         return self._writer
-    
+
     @property
     def callbacks(self) -> Dict[str, Tuple[Callable, Dict]]:
         return self._callbacks
@@ -58,9 +59,18 @@ class Monitor:
                 out[cb_name] = logs
         return out
 
-    def _handle_callback(self, step: int, name: str):
-        cb, logs = self._callbacks[name]
-        results = cb(step)
+    def handle_callback(self, name: str, callback: Callable, logs: Dict):
+        cur_step = self._iter
+        self._handle_callback(cur_step, name, callback, logs)
+
+    def handle_callbacks(self, names: Sequence[str]):
+        cur_step = self._iter
+        for name, (cb, logs) in self._callbacks.items():
+            if name in names:
+                self._handle_callback(cur_step, name, cb, logs)
+
+    def _handle_callback(self, step: int, name: str, callback: Callable, logs: Dict):
+        results = callback(step)
         for key, value in results.items():
             idx = f"{name}/{key}"
             if isinstance(value, (tf.Tensor, gpflow.Parameter)):
@@ -83,8 +93,8 @@ class Monitor:
         cur_step = self._iter
         interval = self._holdout_interval
         if interval > 0 and cur_step % interval == 0:
-            for name in self._callbacks:
-                self._handle_callback(cur_step, name)
+            names = list(self._callbacks.keys())
+            self.handle_callbacks(names)
         self._incr_iteration()
 
 
