@@ -14,16 +14,17 @@ from time import time
 from pathlib import Path
 from memory_profiler import memory_usage
 import bayesian_benchmarks.data as bbd
+import bayesian_benchmarks.paths as bbp
 
 
-FilePath = Union[Path, str]
+OsPath = Union[Path, str]
 
 
 @dataclass
 class BenchRunner:
     repeat: int
     warmup: int
-    logdir: FilePath
+    logdir: OsPath
 
     def bench(self, func_to_run: Callable, prepare_args: Union[Callable, Sequence]):
         gpu_devices = tf.config.get_visible_devices("GPU")
@@ -102,13 +103,13 @@ def parse_name(name: str):
     return {"name": header, **dict([process(s) for s in rest])}
 
 
-def store_dict_as_h5(data: Dict, filepath: FilePath):
+def store_dict_as_h5(data: Dict, filepath: OsPath):
     with h5py.File(filepath, mode="w") as writer:
         for root_key, root_value in data.items():
             store_hdf_value(writer, root_key, root_value)
 
 
-def read_h5_into_dict(filepath: FilePath) -> Dict:
+def read_h5_into_dict(filepath: OsPath) -> Dict:
     data = {}
     with h5py.File(filepath) as reader:
         for key in reader.keys():
@@ -116,7 +117,7 @@ def read_h5_into_dict(filepath: FilePath) -> Dict:
     return data
 
 
-def read_h5(filepath: FilePath) -> h5py.File:
+def read_h5(filepath: OsPath) -> h5py.File:
     return h5py.File(filepath)
 
 
@@ -163,7 +164,7 @@ def read_hdf_value(out_dict: Dict[str, Any], hdf: HdfStruct, key: str):
 
 
 def select_from_report_data(
-    filepaths: Sequence[FilePath],
+    filepaths: Sequence[OsPath],
     join_by: Union[Sequence[str], Dict],
     select_fields: Sequence[str],
 ) -> Dict:
@@ -199,6 +200,7 @@ def expand_paths_with_wildcards(filepaths: Sequence[str]) -> Sequence[str]:
 
 def get_uci_dataset(name: str, seed: int):
     full_name = f"Wilson_{name}"
+    # bbp.BASE_SEED = seed
     dat = getattr(bbd, full_name)(prop=0.67)
     train, test = (dat.X_train, dat.Y_train), (dat.X_test, dat.Y_test)
     x_train, y_train = _norm_dataset(train)

@@ -1,5 +1,4 @@
-from types import ClassMethodDescriptorType
-from typing import Callable, Sequence, Union, Dict, Tuple
+from typing import Callable, Sequence, Union, Dict, Tuple, Optional
 from pathlib import Path
 import tensorflow as tf
 import gpflow
@@ -59,8 +58,9 @@ class Monitor:
                 out[cb_name] = logs
         return out
 
-    def handle_callback(self, name: str, callback: Callable, logs: Dict):
+    def handle_callback(self, name: str, callback: Callable, logs: Optional[Dict] = None):
         cur_step = self._iter
+        logs = {} if logs is None else logs
         self._handle_callback(cur_step, name, callback, logs)
 
     def handle_callbacks(self, names: Sequence[str]):
@@ -71,6 +71,9 @@ class Monitor:
 
     def _handle_callback(self, step: int, name: str, callback: Callable, logs: Dict):
         results = callback(step)
+        if results is None:
+            return
+
         for key, value in results.items():
             idx = f"{name}/{key}"
             if isinstance(value, (tf.Tensor, gpflow.Parameter)):

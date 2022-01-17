@@ -1,4 +1,5 @@
 from functools import partial
+from multiprocessing.sharedctypes import Value
 import sys
 import json
 from scipy.optimize import OptimizeResult
@@ -17,7 +18,7 @@ sys.path.append(cur_dir)
 
 from clitypes import LogdirPath
 from monitor import Monitor
-from bench_utils import get_uci_dataset, store_dict_as_h5, tf_data_tuple, to_tf_scope
+from bench_utils import get_uci_dataset, store_dict_as_h5, tf_data_tuple, to_tf_scope, OsPath
 from barelybiasedgp.selection import uniform_greedy_selection
 from barelybiasedgp.scipy_copy import Scipy
 
@@ -64,19 +65,7 @@ def main(
     holdout_interval: int,
     monitor_metrics: bool,
 ):
-    info = {
-        "seed": seed,
-        "dataset_name": dataset_name,
-        "num_phases": num_phases,
-        "maxiter_per_phase": maxiter_per_phase,
-        "numips": numips,
-        "compile": compile,
-        "subset_size": subset_size,
-        "monitor_metrics": monitor_metrics,
-    }
-    info_str = json.dumps(info, indent=2)
     print("===> Starting")
-    print(f"-> {info_str}")
     assert Path(logdir).exists()
 
     compile_flag: CompileType = compile if compile != "none" else None
@@ -87,6 +76,21 @@ def main(
     data, data_test = get_uci_dataset(dataset_name, seed)
     tf_data = tf_data_tuple(data)
     tf_data_test = tf_data_tuple(data_test)
+
+    info = {
+        "seed": seed,
+        "dataset_name": dataset_name,
+        "num_phases": num_phases,
+        "maxiter_per_phase": maxiter_per_phase,
+        "numips": numips,
+        "compile": compile,
+        "subset_size": subset_size,
+        "monitor_metrics": monitor_metrics,
+        "train_size": data[0].shape[0],
+        "test_size": data_test[0].shape[0],
+    }
+    info_str = json.dumps(info, indent=2)
+    print(f"-> {info_str}")
 
     rng = np.random.RandomState(seed)
     np.random.seed(seed)
@@ -109,6 +113,8 @@ def main(
 
     train_vars = model.trainable_variables
     opt_logs = {}
+    monitor_optimizer_fn = create_optimizer_metrics_func(opt_logs)
+
     for ph in range(num_phases):
         print(f"---> Phase {ph}")
         rng = np.random.RandomState(seed)
@@ -124,6 +130,7 @@ def main(
         )
 
         update_optimizer_logs(res, opt_logs)
+        monitor.handle_callback("optimizer", monitor_optimizer_fn)
 
         if res.nit < 2:
             print(
@@ -134,7 +141,7 @@ def main(
 
         print("-> optimisation result:")
         print(res)
-    
+
     opt_path = Path(logdir, "opt.h5")
     store_dict_as_h5(opt_logs, opt_path)
 
@@ -204,7 +211,7 @@ def compile_function(fn: Callable, compile_type: CompileType) -> Callable:
 
 
 def update_optimizer_logs(res: OptimizeResult, store: Dict):
-    values = {
+    new_values = {
         "status": [res.status],
         "nit": [res.nit],
         "nfev": [res.nfev],
@@ -212,14 +219,14 @@ def update_optimizer_logs(res: OptimizeResult, store: Dict):
     }
 
     if store == {}:
-        store.update(values.items())
+        store.update(new_values.items())
 
-    store.update({key: value + values[key] for key, value in store.items()})
+    store.update({key: value + new_values[key] for key, value in store.items()})
 
 
 def create_monitor(
     holdout_interval: int,
-    logdir: Path,
+    logdir: OsPath,
     funcs: Optional[Dict[str, Callable]] = None,
 ):
     funcs_dict: Dict[str, Callable] = {} if funcs is None else funcs
@@ -243,6 +250,22 @@ def numpy_results(metric_fn: Callable):
 
     values = metric_fn()
     return tf.nest.map_structure(_map, values)
+
+
+def create_optimizer_metrics_func(values):
+    if not isinstance(values, dict):
+        raise ValueError("Expected dictionary")
+
+    def _optimizer_metrics(*args, **kwargs):
+        select_keys = ["nit", "nfev", "objective"]
+        if values == {}:
+            return
+        if any([key not in values or values[key] == [] for key in select_keys]):
+            return
+
+        return {key: values[key][-1] for key in select_keys}
+
+    return _optimizer_metrics
 
 
 def create_metrics_func(model, data, compile_flag: CompileType, prefix: Optional[str] = None):
