@@ -19,8 +19,9 @@ class Monitor:
         self._logdir = logdir
         self._iter: int = init_iteration
         self._writer = SummaryWriter(logdir=str(logdir), max_queue=max_queue, flush_secs=flush_secs)
-        self._callbacks = {}
-        self._holdout_interval: int = holdout_interval
+        self._callbacks: Dict[str, Tuple[Callable, Dict]] = {}
+        self._callback_holdout_interval: Dict[str, int] = {}
+        self._global_holdout_interval: int = holdout_interval
 
     @property
     def writer(self) -> SummaryWriter:
@@ -30,8 +31,10 @@ class Monitor:
     def callbacks(self) -> Dict[str, Tuple[Callable, Dict]]:
         return self._callbacks
 
-    def add_callback(self, name: str, callback: Callable):
+    def add_callback(self, name: str, callback: Callable, holdout_interval: int = None):
         self._callbacks[name] = (callback, {})
+        if holdout_interval is not None:
+            self._callback_holdout_interval[name] = holdout_interval
 
     def reset(self):
         self._iter = 0
@@ -60,16 +63,21 @@ class Monitor:
 
     def handle_callback(self, name: str, callback: Callable, logs: Optional[Dict] = None):
         cur_step = self._iter
-        logs = {} if logs is None else logs
         self._handle_callback(cur_step, name, callback, logs)
 
-    def handle_callbacks(self, names: Sequence[str]):
+    def handle_callbacks(self, callbacks: Dict[str, Union[Callable, Tuple[Callable, Dict]]]):
         cur_step = self._iter
-        for name, (cb, logs) in self._callbacks.items():
-            if name in names:
-                self._handle_callback(cur_step, name, cb, logs)
+        for name, value in callbacks.items():
+            cb, logs = (value, None) if callable(value) else value
+            self._handle_callback(cur_step, name, cb, logs)
 
-    def _handle_callback(self, step: int, name: str, callback: Callable, logs: Dict):
+    def _handle_callback(
+        self,
+        step: int,
+        name: str,
+        callback: Callable,
+        logs: Optional[Dict] = None,
+    ):
         results = callback(step)
         if results is None:
             return
@@ -82,22 +90,37 @@ class Monitor:
                 numpy_value = np.array(value)
 
             if isinstance(numpy_value, (list, np.ndarray)) and _len(numpy_value) > 1:
-                for i, r in enumerate(value):
-                    self.writer.add_scalar(f"{idx}_{i}", r, global_step=step)
+                if len(numpy_value.shape) == 1:
+                    for i, r in enumerate(value):
+                        self.writer.add_scalar(f"{idx}_{i}", r, global_step=step)
+                else:
+                    self.writer.add_histogram(idx, numpy_value, global_step=step)
             else:
                 self.writer.add_scalar(idx, numpy_value, global_step=step)
 
-            if key in logs:
-                logs[key].append(numpy_value)
-            else:
-                logs[key] = [numpy_value]
+            if logs is not None:
+                if key in logs:
+                    logs[key].append(numpy_value)
+                else:
+                    logs[key] = [numpy_value]
 
     def __call__(self, step: int, *args, **kwargs):
         cur_step = self._iter
-        interval = self._holdout_interval
-        if interval > 0 and cur_step % interval == 0:
-            names = list(self._callbacks.keys())
-            self.handle_callbacks(names)
+        global_interval = self._global_holdout_interval
+
+        for name, value in self._callbacks.items():
+            cb_interval = None
+            if name in self._callback_holdout_interval:
+                cb_interval = self._callback_holdout_interval[name]
+            if cb_interval is not None:
+                if cur_step % cb_interval != 0:
+                    continue
+            elif cur_step % global_interval != 0:
+                continue
+
+            cb, logs = value
+            self.handle_callback(name, cb, logs)
+
         self._incr_iteration()
 
 

@@ -200,7 +200,7 @@ def expand_paths_with_wildcards(filepaths: Sequence[str]) -> Sequence[str]:
 
 def get_uci_dataset(name: str, seed: int):
     full_name = f"Wilson_{name}"
-    # bbp.BASE_SEED = seed
+    bbp.BASE_SEED = seed
     dat = getattr(bbd, full_name)(prop=0.67)
     train, test = (dat.X_train, dat.Y_train), (dat.X_test, dat.Y_test)
     x_train, y_train = _norm_dataset(train)

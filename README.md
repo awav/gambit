@@ -192,25 +192,45 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     pip install -y numpy keras_preprocessing
     ```
 
-3. 
+3. Local installation (CUDA or TPU)
     ```
+    DEV=cuda
     TF_PIP_PATH=~/.local/tf-pip
     rm -rf $TF_PIP_PATH &&
-    bazel build //tensorflow/tools/pip_package:build_pip_package --config=cuda &&
+    bazel build //tensorflow/tools/pip_package:build_pip_package --config=$DEV &&
     ./bazel-bin/tensorflow/tools/pip_package/build_pip_package $TF_PIP_PATH &&
     pip uninstall tensorflow tensorflow-estimator &&
     pip install -U $TF_PIP_PATH/tensorflow-*.whl
     ```
 
+    ```
+    DEV=tpu
+    TF_PIP_PATH=~/.local/tf-pip
+    rm -rf $TF_PIP_PATH &&
+    bazel build //tensorflow/tools/pip_package:build_pip_package --config=$DEV &&
+    ./bazel-bin/tensorflow/tools/pip_package/build_pip_package $TF_PIP_PATH &&
+    pip3 uninstall tensorflow tensorflow-estimator &&
+    pip3 install -U $TF_PIP_PATH/tensorflow-*.whl
+    ```
 ## JAX local compiling
 
+1. GPU:
     ```
     CUDA_VERSION=11.2
-    JAX_DIST=/home/artem/code/jax/dist
+    JAX_DIST=~/code/jax/dist
     rm -rf $JAX_DIST/jaxlib-*.whl &&
     python build/build.py --enable_cuda --cuda_version=$CUDA_VERSION &&
     pip install --force-reinstall $JAX_DIST/jaxlib-*.whl &&
     pip install -e .
+    ```
+
+2. TPU
+    ```
+    JAX_DIST=~/code/jax/dist
+    rm -rf $JAX_DIST/jaxlib-*.whl &&
+    python3 build/build.py --enable_tpu &&
+    pip3 install --force-reinstall $JAX_DIST/jaxlib-*.whl &&
+    pip3 install -e .
     ```
 
 ## Building with JAX

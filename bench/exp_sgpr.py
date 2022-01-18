@@ -86,6 +86,7 @@ def main(
         "compile": compile,
         "subset_size": subset_size,
         "monitor_metrics": monitor_metrics,
+        "dim_size": data[0].shape[-1],
         "train_size": data[0].shape[0],
         "test_size": data_test[0].shape[0],
     }
@@ -101,11 +102,11 @@ def main(
     scipy_options = dict(maxiter=maxiter_per_phase)
     loss_fn = model.training_loss_closure(compile=False)
 
-    monitor_param_fn = create_model_parameters_func(model)
+    monitor_trainable_param_fn = create_keep_parameters_func(model)
     monitor_metric_fn = create_metrics_func(model, tf_data_test, compile_flag, prefix="test")
     param_key = "param"
     metric_key = "metric"
-    funcs = {param_key: monitor_param_fn}
+    funcs = {param_key: monitor_trainable_param_fn}
     if monitor_metrics:
         funcs[metric_key] = monitor_metric_fn
 
@@ -113,13 +114,21 @@ def main(
 
     train_vars = model.trainable_variables
     opt_logs = {}
+    param_logs = {}
+    metric_logs = {}
     monitor_optimizer_fn = create_optimizer_metrics_func(opt_logs)
+    monitor_all_param_fn = create_keep_parameters_func(model, only_trainable=False)
+    phase_funcs = {
+        "optimizer": monitor_optimizer_fn,
+        "param": (monitor_all_param_fn, param_logs),
+        "metric": (monitor_metric_fn, metric_logs),
+    }
 
     for ph in range(num_phases):
         print(f"---> Phase {ph}")
         rng = np.random.RandomState(seed)
         initialize_ips(rng, data, model, numips, subset_size, threshold)
-        current_ips = model.inducing_variable.Z.numpy()
+
         opt = Scipy()
         res = opt.minimize(
             loss_fn,
@@ -130,7 +139,7 @@ def main(
         )
 
         update_optimizer_logs(res, opt_logs)
-        monitor.handle_callback("optimizer", monitor_optimizer_fn)
+        monitor.handle_callbacks(phase_funcs)
 
         if res.nit < 2:
             print(
@@ -142,18 +151,31 @@ def main(
         print("-> optimisation result:")
         print(res)
 
+    # optimization traces
     opt_path = Path(logdir, "opt.h5")
     store_dict_as_h5(opt_logs, opt_path)
 
+    # trainable parameters
     logs = monitor.collect_logs()
-    param_path = Path(logdir, "param.h5")
-    store_dict_as_h5(logs[param_key], param_path)
-    info_extension = {f"{param_key}_path": str(param_path)}
+    train_param_path = Path(logdir, "train_param.h5")
+    store_dict_as_h5(logs[param_key], train_param_path)
+    info_extension = {f"{param_key}_path": str(train_param_path)}
 
+    # monitor metrics 
     if monitor_metrics:
         metric_path = Path(logdir, "metric.h5")
         store_dict_as_h5(logs[metric_key], metric_path)
-        info_extension = {f"{param_key}_path": str(metric_path), **info_extension}
+        info_extension = {f"{metric_key}_path": str(metric_path), **info_extension}
+    
+    # all parameters
+    all_param_path = Path(logdir, "all_param.h5")
+    store_dict_as_h5(param_logs, all_param_path)
+    info_extension = {f"all_param_path": str(all_param_path)}
+
+    # phase metrics
+    phase_metric_path = Path(logdir, "phase_metric.h5")
+    store_dict_as_h5(metric_logs, phase_metric_path)
+    info_extension = {f"phase_metric_path": str(phase_metric_path)}
 
     final_metric = numpy_results(monitor_metric_fn)
     info_extension = {"final_metric": final_metric, **info_extension}
@@ -233,12 +255,9 @@ def create_monitor(
     monitor_logdir = Path(logdir, "tb")
     monitor = Monitor(monitor_logdir, holdout_interval=holdout_interval)
 
-    def cb_wrapper(func: Callable, *args, **kwargs):
-        return func()
-
     for name, func in funcs_dict.items():
-        cb_func = partial(cb_wrapper, func)
-        monitor.add_callback(name, cb_func)
+        monitor.add_callback(name, func)
+
     return monitor
 
 
@@ -281,14 +300,19 @@ def create_metrics_func(model, data, compile_flag: CompileType, prefix: Optional
             return {f"{prefix}_rmse": rmse, f"{prefix}_nlpd": nlpd}
         return {"rmse": rmse, "nlpd": nlpd}
 
-    return compile_function(_metrics, compile_flag)
+    compiled_function = compile_function(_metrics, compile_flag)
+
+    def _numpy_metrics(*args, **kwargs):
+        return numpy_results(compiled_function)
+
+    return _numpy_metrics
 
 
-def create_model_parameters_func(model: gpflow.models.SGPR):
-    def _params():
+def create_keep_parameters_func(model: gpflow.models.SGPR, only_trainable: bool = True):
+    def _params(*args, **kwargs):
         params = {}
         for name, param in parameter_dict(model).items():
-            if not param.trainable:
+            if only_trainable and not param.trainable:
                 continue
             name = name.lstrip(".")
             params[name] = param.numpy()
