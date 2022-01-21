@@ -3,8 +3,8 @@
 
 CONDA_ACTIVATE='conda activate py37'
 CD_TO_DIR='cd ~/code/gambit/bench'
+TF_LOG_LEVEL='2'
 
-# setenv TF_CPP_MIN_LOG_LEVEL 2 \; \
 
 function run_tmux_session_gpu() {
     device_order="PCI_BUS_ID"
@@ -13,8 +13,10 @@ function run_tmux_session_gpu() {
     tmux new-session -s "gpu${gpu_index}" -d \; \
         setenv CUDA_DEVICE_ORDER $device_order \; \
         setenv CUDA_VISIBLE_DEVICES $gpu_index \; \
+        setenv TF_CPP_MIN_LOG_LEVEL $TF_LOG_LEVEL \; \
         send-keys -t 0 "export CUDA_DEVICE_ORDER="$device_order c-m \; \
         send-keys -t 0 "export CUDA_VISIBLE_DEVICES="$gpu_index C-m \; \
+        send-keys -t 0 "export TF_CPP_MIN_LOG_LEVEL="$TF_LOG_LEVEL C-m \; \
         send-keys -t 0 'echo $CUDA_DEVICE_ORDER' C-m \; \
         send-keys -t 0 'echo $CUDA_VISIBLE_DEVICES' C-m \; \
         send-keys -t 0 'echo $TF_CPP_MIN_LOG_LEVEL' C-m \; \

@@ -16,7 +16,7 @@ def churn_speed_table(files):
     files = files if isinstance(files, (list, tuple)) else [files]
     expanded_files = expand_paths_with_wildcards(files)
     cols = ["dataset_name", "distance", "dataset_size", "dim_size"]
-    join_by = ["dataset", "query_size", "backend", *cols]
+    join_by = ["dataset_config", "query_size", "backend", *cols]
     data = select_from_report_data(expanded_files, join_by, ["elapsed_stats"])
 
     backend_id = join_by.index("backend")
@@ -41,8 +41,8 @@ def churn_speed_table(files):
     
     array = [[*keys, *values] for keys, values in rows.items()]
     df = pd.DataFrame(array, columns=col_names)
-
-    click.echo(f"{df.to_latex()}")
+    df_str = df.to_latex(float_format="{:.0f}".format)
+    click.echo(f"{df_str}")
 
 
 if __name__ == "__main__":

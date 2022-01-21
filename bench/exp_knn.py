@@ -1,4 +1,5 @@
-from typing import Callable, Union
+from multiprocessing.sharedctypes import Value
+from typing import Callable, Union, Dict
 from typing_extensions import Literal
 import click
 import numpy as np
@@ -17,8 +18,8 @@ _gpu_devices = tf.config.get_visible_devices("GPU")
 _gpu_dev = _gpu_devices[0] if _gpu_devices else None
 
 if _gpu_dev is not None:
-    print(f">>> GPU device information: {_gpu_dev}")
-    print(">>> Set GPU memory growth")
+    click.echo(f">>> GPU device information: {_gpu_dev}")
+    click.echo(">>> Set GPU memory growth")
     tf.config.experimental.set_memory_growth(_gpu_dev, True)
 
 curdir = str(Path(__file__).expanduser().absolute().parent)
@@ -32,11 +33,34 @@ Distance = Literal["L2", "L1", "cosine"]
 PathLike = Union[Path, str]
 
 
+__ann_dataset_path = Path("~/code/ann-benchmarks/data").expanduser().resolve()
 __default_logdir = Path(curdir, "logs_knn_default")
 __download_dir = "~/.datasets"
 
-backend_choices = click.Choice(["jax", "keops", "tf"])
+backend_choices = click.Choice(["jax", "keops", "tf", "jax-pure", "tf-pure"])
 distance_choices = click.Choice(["L2", "L1", "cosine"])
+
+
+class DatasetType(click.ParamType):
+    name = "dataset_type"
+
+    def convert(self, value, param, ctx):
+        datasets = {"random", "mnist", "fashion", "glove50", "glove100", "glove200"}
+        names = {"n": "dataset_size", "m": "query_size", "d": "dim_size"}
+        try:
+            parsed_dict = parse_name(value)
+            name = parsed_dict["name"]
+            if name not in datasets:
+                raise RuntimeError(f"Not supported dataset {name}")
+            parsed_map_dict = {
+                names[key]: int(value) for key, value in parsed_dict.items() if key in names
+            }
+            return {"dataset_name": name, "dataset_config": value, **parsed_map_dict}
+        except Exception as ex:
+            self.fail(f"{value} is not a valid dataset type", param, ctx)
+
+    def __repr__(self):
+        return "DatasetType"
 
 
 @click.command()
@@ -45,9 +69,9 @@ distance_choices = click.Choice(["L2", "L1", "cosine"])
 @click.option("-w", "--warmup", type=int, default=1, help="Number of warm-up iterations")
 @click.option("-l", "--logdir", type=LogdirPath(), default=__default_logdir)
 @click.option("-c", "--distance", type=distance_choices, default="L2")
-@click.option("-k", "--topk", type=int, default=10000)
+@click.option("-k", "--topk", type=int, default=10)
 @click.option("-b", "--backend", type=backend_choices, default="jax")
-@click.option("-d", "--dataset", type=str)
+@click.option("-d", "--dataset", type=DatasetType())
 def main(
     backend: Backend,
     logdir: str,
@@ -55,29 +79,31 @@ def main(
     warmup: int,
     repeat: int,
     distance: Distance,
-    dataset: str,
+    dataset: Dict,
     topk: int,
 ):
     tf.random.set_seed(seed)
     np.random.seed(seed)
 
+    backend_full = backend
+    if backend_full.endswith("-pure"):
+        backend = backend_full.split("-")[0]
+
     prepare_backend(backend, logdir)
-    dataset_name, args_info, exp_args_fn = create_exp_args(backend, dataset, seed)
+    upd_dataset_info, exp_args_fn = create_exp_args(backend, dataset, seed)
     exp_func = create_exp_knn(backend, topk, distance)
 
     bench_runner = BenchRunner(repeat=repeat, warmup=warmup, logdir=logdir)
     results = bench_runner.bench(exp_func, exp_args_fn)
 
     bench_table = dict(
-        backend=backend,
+        backend=backend_full,
         seed=seed,
         warmup=warmup,
         repeat=repeat,
         distance=distance,
-        dataset=dataset,
-        dataset_name=dataset_name,
         topk=topk,
-        **args_info,
+        **upd_dataset_info,
         **results,
     )
 
@@ -87,7 +113,7 @@ def main(
     (elap_mu, elap_std) = results["elapsed_stats"]
     (mem_mu, mem_std) = results["mem_stats"]
 
-    print(
+    click.echo(
         "[Bench] Total stat, "
         f"spent_avg={elap_mu}, spent_std={elap_std}, "
         f"mem_avg={mem_mu}, mem_std={mem_std}"
@@ -114,20 +140,20 @@ def create_exp_knn(backend: Backend, k: int, distance: Distance) -> Callable:
     raise NotImplementedError(f"Uknown backend passed: {backend}")
 
 
-def create_exp_args(backend: Backend, dataset: str, seed: int):
-    data_points = None
-    query_points = None
-    conf = {}
+def create_exp_args(backend: Backend, dataset: Dict, seed: int):
+    output_dataset = dataset.copy()
+    name = dataset["dataset_name"]
+    orig_name = dataset["dataset_config"]
 
-    if dataset.startswith("random"):
-        parsed_conf = parse_name(dataset)
+    if name == "random":
+        must_have_keys = {"dataset_size", "query_size", "dim_size"}
+        if not all([key in dataset for key in must_have_keys]):
+            raise ValueError(f"Some keys are missing in {orig_name}")
         dtype = np.float32
-        n = int(parsed_conf["n"])
-        m = int(parsed_conf["m"])
-        d = int(parsed_conf["d"])
-        conf = {"dataset_size": n, "query_size": m, "dim_size": d}
-        dataset_name: Literal["random"] = "random"
         rng = np.random.RandomState(seed)
+        n = dataset["dataset_size"]
+        m = dataset["query_size"]
+        d = dataset["dim_size"]
 
         def random_args_fn():
             rnd_data_points = np.array(rng.randn(n, d), dtype=dtype)
@@ -136,45 +162,43 @@ def create_exp_args(backend: Backend, dataset: str, seed: int):
 
         args_fn = random_args_fn
 
-    elif dataset.startswith("mnist") or dataset.startswith("fashion"):
+    elif name == "mnist" or name == "fashion":
         import torchvision
-
-        conf = parse_name(dataset)
-        dataset_name: Literal["mnist", "fashion"] = conf["name"]
 
         dataset_classes = {
             "mnist": torchvision.datasets.MNIST,
             "fashion": torchvision.datasets.FashionMNIST,
         }
-        if dataset_name not in dataset_classes:
-            raise RuntimeError(f"Unknown parsed dataset name: {dataset_name}")
+        if "query_size" not in dataset:
+            raise ValueError(f"Query size is missing in {orig_name}")
 
-        dataset_class = dataset_classes[dataset_name]
+        m = dataset["query_size"]
+        dataset_class = dataset_classes[name]
         ds = dataset_class(__download_dir, download=True)
         data_points = np.array(ds.data.cpu().numpy(), dtype=np.float32)
         data_points /= 255.0
         n = data_points.shape[0]
         data_points = data_points.reshape(n, -1)
         d = data_points.shape[-1]
-        m = int(conf["m"])
         query_indices = np.random.choice(data_points.shape[0], size=m)
         query_points = data_points[query_indices, ...]
+
+        output_dataset["dataset_size"] = data_points.shape[0]
+        output_dataset["dim_size"] = data_points.shape[-1]
 
         def mnist_args_fn():
             return data_points, query_points
 
         args_fn = mnist_args_fn
-    elif dataset.startswith("glove"):
-        datasets = {"glove-50", "glove-100", "glove-200"}
-        if dataset not in datasets:
-            raise RuntimeError(f"Unknown dataset name: {dataset}")
-        dataset_name = dataset
-        # TODO(awav): change hard-coded path to the directory
-        glove_dirpath = Path("~/code/ann-benchmarks/data").expanduser().resolve()
-        glove_filepath = Path(glove_dirpath, f"{dataset_name}-angular.hdf5")
+    elif name.startswith("glove"):
+        glove_filepath = Path(__ann_dataset_path, f"{name}-angular.hdf5")
         dataset_dict = read_h5_into_dict(glove_filepath)
         data_points = dataset_dict["train"]
         query_points = dataset_dict["test"]
+
+        output_dataset["query_size"] = data_points.shape[0]
+        output_dataset["dataset_size"] = data_points.shape[0]
+        output_dataset["dim_size"] = data_points.shape[-1]
 
         def glove_args_fn():
             return data_points, query_points
@@ -183,21 +207,12 @@ def create_exp_args(backend: Backend, dataset: str, seed: int):
     else:
         raise NotImplementedError(f"Uknown dataset passed: {dataset}")
 
-    if data_points is not None:
-        n: int = data_points.shape[0]
-        d: int = data_points.shape[-1]
-        conf = {"dataset_size": n, "dim_size": d}
-
-    if query_points is not None:
-        m: int = query_points.shape[0]
-        conf = {**conf, "query_size": m}
-
     if backend == "jax":
-        return dataset_name, conf, prepare_jax_args_fn(args_fn)
+        return output_dataset, prepare_jax_args_fn(args_fn)
     elif backend == "keops":
-        return dataset_name, conf, prepare_keops_args_fn(args_fn)
+        return output_dataset, prepare_keops_args_fn(args_fn)
     elif backend == "tf":
-        return dataset_name, conf, prepare_tf_args_fn(args_fn)
+        return output_dataset, prepare_tf_args_fn(args_fn)
 
     raise NotImplementedError(f"Uknown backend passed: {backend}")
 
@@ -266,7 +281,7 @@ def knn_l1_tf(data_points, query_points, k: int = 10):
     abs_distances = tf.math.abs(data_points[:, None, :] - query_points[None, :, :])
     distances = tf.reduce_sum(abs_distances, axis=-1)
     distances_t = tf.transpose(distances)
-    _, topk_indices = jax.lax.top_k(-distances_t, k)
+    _, topk_indices = tf.math.top_k(-distances_t, k)
     return topk_indices
 
 
@@ -278,7 +293,6 @@ def knn_cosine_tf(data_points, query_points, k: int = 10):
     Return:
         Angular distance matrix
     """
-    xy_dot = data_points @ query_points.T
     xy_dot = tf.matmul(data_points, query_points, transpose_b=True)
     x_norm = tf.reduce_sum(data_points ** 2, axis=-1)
     y_norm = tf.reduce_sum(query_points ** 2, axis=-1)

@@ -195,11 +195,11 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
 3. Local installation (CUDA or TPU)
     ```
     DEV=cuda
-    TF_PIP_PATH=~/.local/tf-pip
+    TF_PIP_PATH=~/Storage/tf-pip
     rm -rf $TF_PIP_PATH &&
     bazel build //tensorflow/tools/pip_package:build_pip_package --config=$DEV &&
     ./bazel-bin/tensorflow/tools/pip_package/build_pip_package $TF_PIP_PATH &&
-    pip uninstall tensorflow tensorflow-estimator &&
+    pip uninstall -y tensorflow tensorflow-estimator &&
     pip install -U $TF_PIP_PATH/tensorflow-*.whl
     ```
 
@@ -225,13 +225,24 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     ```
 
 2. TPU
-    ```
-    JAX_DIST=~/code/jax/dist
-    rm -rf $JAX_DIST/jaxlib-*.whl &&
-    python3 build/build.py --enable_tpu &&
-    pip3 install --force-reinstall $JAX_DIST/jaxlib-*.whl &&
-    pip3 install -e .
-    ```
+
+TensorFlow master SHA: `609b3f0dde17ea883743b1bd0e10294956f6654a` on 3 Oct 2021
+
+```
+YYYYMMDD=20211003
+pip3 install --upgrade libtpu-nightly==0.1.dev${YYYYMMDD} -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
+```
+
+```
+JAX_DIST=~/code/jax/dist
+```
+
+```
+rm -rf $JAX_DIST/jaxlib-*.whl &&
+python3 build/build.py --enable_tpu &&
+pip3 install --force-reinstall $JAX_DIST/jaxlib-*.whl &&
+pip3 install -e .
+```
 
 ## Building with JAX
 1. Download JAX repo: `git clone https://github.com/google/jax.git`

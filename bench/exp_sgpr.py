@@ -1,7 +1,7 @@
-from functools import partial
-from multiprocessing.sharedctypes import Value
+import os
 import sys
 import json
+import pprint
 from scipy.optimize import OptimizeResult
 from pathlib import Path
 from typing import Callable, Optional, Union, Tuple, NamedTuple, Dict
@@ -49,9 +49,8 @@ if _gpu_dev is not None:
 @click.option("-c", "--compile", default="xla", help="Compile function with xla, tf or none")
 @click.option("-ss", "--subset-size", default=100000, help="Greedy selection subset size")
 @click.option("--monitor-metrics/--no-monitor-metrics", default=False)
-@click.option(
-    "-hi", "--holdout_interval", default=1, type=int, help="Holdout interval between recordings"
-)
+@click.option("-mhi", "--metric-holdout-interval", type=int, default=0)
+@click.option("-hi", "--holdout-interval", default=1, type=int)
 @click.option("-m", "--numips", type=int, help="Number of inducing points")
 def main(
     dataset_name: str,
@@ -62,16 +61,13 @@ def main(
     seed: int,
     compile: Literal["xla", "tf", "none"],
     subset_size: int,
+    metric_holdout_interval: int,
     holdout_interval: int,
-    monitor_metrics: bool,
 ):
-    print("===> Starting")
+    click.echo("===> Starting")
     assert Path(logdir).exists()
 
     compile_flag: CompileType = compile if compile != "none" else None
-
-    threshold = 0.001
-    noise = 0.1
 
     data, data_test = get_uci_dataset(dataset_name, seed)
     tf_data = tf_data_tuple(data)
@@ -85,49 +81,48 @@ def main(
         "numips": numips,
         "compile": compile,
         "subset_size": subset_size,
-        "monitor_metrics": monitor_metrics,
+        "metric_holdout_interval": metric_holdout_interval,
         "dim_size": data[0].shape[-1],
         "train_size": data[0].shape[0],
         "test_size": data_test[0].shape[0],
     }
     info_str = json.dumps(info, indent=2)
-    print(f"-> {info_str}")
+    click.echo(f"-> {info_str}")
 
     rng = np.random.RandomState(seed)
     np.random.seed(seed)
     tf.random.set_seed(seed)
 
-    model = initialize_sgpr(rng, tf_data, numips, noise)
+    model = initialize_sgpr(rng, tf_data, numips)
     set_trainable(model.inducing_variable, False)
     scipy_options = dict(maxiter=maxiter_per_phase)
     loss_fn = model.training_loss_closure(compile=False)
 
-    monitor_trainable_param_fn = create_keep_parameters_func(model)
-    monitor_metric_fn = create_metrics_func(model, tf_data_test, compile_flag, prefix="test")
-    param_key = "param"
-    metric_key = "metric"
-    funcs = {param_key: monitor_trainable_param_fn}
-    if monitor_metrics:
-        funcs[metric_key] = monitor_metric_fn
-
-    monitor = create_monitor(holdout_interval, logdir, funcs=funcs)
-
-    train_vars = model.trainable_variables
     opt_logs = {}
     param_logs = {}
     metric_logs = {}
-    monitor_optimizer_fn = create_optimizer_metrics_func(opt_logs)
-    monitor_all_param_fn = create_keep_parameters_func(model, only_trainable=False)
+
+    optimizer_fn = create_optimizer_metrics_func(opt_logs)
+    all_param_fn = create_keep_parameters_func(model, only_trainable=False)
+    metric_fn = create_metrics_func(model, tf_data_test, compile_flag, prefix="test")
+
+    monitor = create_monitor(holdout_interval, logdir)
+    monitor.add_callback("param", all_param_fn)
+    if metric_holdout_interval > 0:
+        monitor.add_callback("metric", metric_fn, metric_holdout_interval)
+
     phase_funcs = {
-        "optimizer": monitor_optimizer_fn,
-        "param": (monitor_all_param_fn, param_logs),
-        "metric": (monitor_metric_fn, metric_logs),
+        "optimizer": optimizer_fn,
+        "param": (all_param_fn, param_logs),
+        "metric": (metric_fn, metric_logs),
     }
 
+    train_vars = model.trainable_variables
+
     for ph in range(num_phases):
-        print(f"---> Phase {ph}")
+        click.echo(f"---> Phase {ph}")
         rng = np.random.RandomState(seed)
-        initialize_ips(rng, data, model, numips, subset_size, threshold)
+        initialize_ips(rng, data, model, numips, subset_size)
 
         opt = Scipy()
         res = opt.minimize(
@@ -142,14 +137,14 @@ def main(
         monitor.handle_callbacks(phase_funcs)
 
         if res.nit < 2:
-            print(
+            click.echo(
                 f"---> Break training loop after phase {ph}."
                 f"The number of optimization iterations is at minimum: {res.nit}"
             )
             break
 
-        print("-> optimisation result:")
-        print(res)
+        click.echo("-> optimisation result:")
+        click.echo(res)
 
     # optimization traces
     opt_path = Path(logdir, "opt.h5")
@@ -157,33 +152,28 @@ def main(
 
     # trainable parameters
     logs = monitor.collect_logs()
-    train_param_path = Path(logdir, "train_param.h5")
-    store_dict_as_h5(logs[param_key], train_param_path)
-    info_extension = {f"{param_key}_path": str(train_param_path)}
+    param_path = Path(logdir, "param.h5")
+    store_dict_as_h5(logs["param"], param_path)
+    info_extension = {f"param_path": str(param_path)}
 
-    # monitor metrics 
-    if monitor_metrics:
+    # monitor metrics
+    if metric_holdout_interval > 0:
         metric_path = Path(logdir, "metric.h5")
-        store_dict_as_h5(logs[metric_key], metric_path)
-        info_extension = {f"{metric_key}_path": str(metric_path), **info_extension}
-    
-    # all parameters
-    all_param_path = Path(logdir, "all_param.h5")
-    store_dict_as_h5(param_logs, all_param_path)
-    info_extension = {f"all_param_path": str(all_param_path)}
+        store_dict_as_h5(logs["metric"], metric_path)
+        info_extension = {f"metric_path": str(metric_path), **info_extension}
 
     # phase metrics
     phase_metric_path = Path(logdir, "phase_metric.h5")
     store_dict_as_h5(metric_logs, phase_metric_path)
     info_extension = {f"phase_metric_path": str(phase_metric_path)}
 
-    final_metric = numpy_results(monitor_metric_fn)
+    final_metric = numpy_results(metric_fn)
     info_extension = {"final_metric": final_metric, **info_extension}
     info_extended = {**info, **info_extension}
     info_path = Path(logdir, "info.h5")
     store_dict_as_h5(info_extended, info_path)
 
-    print("<=== Finished")
+    click.echo("<=== Finished")
 
 
 def initialize_ips(
@@ -192,11 +182,11 @@ def initialize_ips(
     model,
     numips: int,
     subset_size: int,
-    threshold: float,
+    threshold: float = 0.001,
 ):
     x, _ = data
     kernel = model.kernel
-    noise = np.array(model.likelihood.variance)
+    noise = float(model.likelihood.variance.numpy())
     iv, _ = uniform_greedy_selection(x, subset_size, numips, kernel, noise, threshold, rng=rng)
     model.inducing_variable.Z.assign(iv)
 
@@ -205,7 +195,7 @@ def initialize_sgpr(
     rng,
     data,
     numips: int,
-    noise: float,
+    noise: float = 0.1,
 ):
     x, _ = data
     dim = x.shape[-1]
@@ -322,4 +312,5 @@ def create_keep_parameters_func(model: gpflow.models.SGPR, only_trainable: bool 
 
 
 if __name__ == "__main__":
+    pprint.pprint(dict(os.environ), width = 1)
     main()
