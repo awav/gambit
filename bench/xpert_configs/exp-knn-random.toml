@@ -1,0 +1,68 @@
+cmd = 'python ./exp_knn.py -l "{uid}"'
+
+# L2 TF and JAX
+[[exp]]
+cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -b {backend} -s {seed} -d random_n{datasize}_d{datadim}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
+uid = './{rootdir}/{backend}_{limit}/{distance}_random_n{datasize}_d{datadim}_m{querysize}/{seed}'
+
+warmup = 1
+repeat = 1
+limit = "100MB"
+rootdir = "logs_knn"
+seed = 111
+backend = ["jax", "tf"]
+distance = "L2"
+datasize = [10_000, 1_000_000, 10_000_000]
+datadim = [3, 10, 100]
+querysize = [10000]
+
+# L2 Keops
+[[exp]]
+cmd = '{cmd} -b {backend} -s {seed} -d random_n{datasize}_d{datadim}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
+uid = './{rootdir}/{backend}/{distance}_random_n{datasize}_d{datadim}_m{querysize}/{seed}'
+
+warmup = 1
+repeat = 1
+rootdir = "logs_knn"
+seed = 111
+backend = "keops"
+distance = "L2"
+datasize = [10_000, 1_000_000, 10_000_000]
+datadim = [3, 10, 100]
+querysize = [10000]
+
+# (L1 and cosine) TF and JAX
+[[exp]]
+cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -b {backend} -s {seed} -d random_n{datasize}_d{datadim}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
+uid = './{rootdir}/{backend}_{limit}/{distance}_random_n{datasize}_d{datadim}_m{querysize}/{seed}'
+
+warmup = 1
+repeat = 1
+limit = "100MB"
+rootdir = "logs_knn"
+seed = 111
+backend = ["tf", "jax"]
+distance = ["L1", "cosine"]
+datasize = [1_000_000]
+datadim = [10, 100]
+querysize = [10000]
+
+# (L1 and cosine) Keops
+[[exp]]
+cmd = '{cmd} -b {backend} -s {seed} -d random_n{datasize}_d{datadim}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
+uid = './{rootdir}/{backend}/{distance}_random_n{datasize}_d{datadim}_m{querysize}/{seed}'
+
+warmup = 1
+repeat = 1
+rootdir = "logs_knn"
+seed = 111
+backend = "keops"
+distance = ["L1", "cosine"]
+datasize = [1_000_000]
+datadim = [10, 100]
+querysize = [10000]
+
+[flags]
+restart = false
+num_proc = 3
+gpu_indices = ["0", "1", "3"]

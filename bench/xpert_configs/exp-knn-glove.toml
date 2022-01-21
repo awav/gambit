@@ -1,0 +1,36 @@
+cmd = 'python ./exp_knn.py -l "{uid}"'
+
+# Cosine glove TF and JAX
+[[exp]]
+cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -b {backend} -s {seed} -d {dataset} -r {repeat} -w {warmup} -c {distance}'
+uid = './{rootdir}/{backend}_{limit}/{distance}_{dataset}/{seed}'
+
+warmup = 1
+repeat = 1
+limit = "100MB"
+rootdir = "logs_knn"
+seed = 111
+dataset = ["glove50", "glove100", "glove200"]
+backend = ["jax", "tf"]
+distance = "cosine"
+querysize = [10000]
+
+# Cosine glove Keops
+[[exp]]
+cmd = '{cmd} -b {backend} -s {seed} -d {dataset} -r {repeat} -w {warmup} -c {distance}'
+uid = './{rootdir}/{backend}/{distance}_{dataset}/{seed}'
+
+warmup = 1
+repeat = 1
+rootdir = "logs_knn"
+seed = 111
+dataset = ["glove50", "glove100", "glove200"]
+backend = "keops"
+distance = "cosine"
+querysize = [10000]
+
+
+[flags]
+restart = false
+num_proc = 3
+gpu_indices = ["0", "1", "3"]
