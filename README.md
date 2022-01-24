@@ -239,7 +239,7 @@ JAX_DIST=~/code/jax/dist
 
 ```
 rm -rf $JAX_DIST/jaxlib-*.whl &&
-python3 build/build.py --enable_tpu &&
+python3 build/build.py --enable_tpu --bazel_options="--override_repository=org_tensorflow=$HOME/code/gambit/tensorflow" &&
 pip3 install --force-reinstall $JAX_DIST/jaxlib-*.whl &&
 pip3 install -e .
 ```

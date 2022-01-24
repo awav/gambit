@@ -196,7 +196,7 @@ def create_exp_args(backend: Backend, dataset: Dict, seed: int):
         data_points = dataset_dict["train"]
         query_points = dataset_dict["test"]
 
-        output_dataset["query_size"] = data_points.shape[0]
+        output_dataset["query_size"] = query_points.shape[0]
         output_dataset["dataset_size"] = data_points.shape[0]
         output_dataset["dim_size"] = data_points.shape[-1]
 
