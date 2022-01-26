@@ -82,6 +82,7 @@ def main(
         "maxiter": maxiter,
         "numips": numips,
         "compile": compile,
+        "grad_ips": True,
         "subset_size": subset_size,
         "metric_holdout_interval": metric_holdout_interval,
         "dim_size": data[0].shape[-1],

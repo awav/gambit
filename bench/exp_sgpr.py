@@ -81,6 +81,7 @@ def main(
         "num_phases": num_phases,
         "maxiter_per_phase": maxiter_per_phase,
         "numips": numips,
+        "grad_ips": False,
         "compile": compile,
         "subset_size": subset_size,
         "metric_holdout_interval": metric_holdout_interval,
