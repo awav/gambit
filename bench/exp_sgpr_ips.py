@@ -16,9 +16,16 @@ cur_dir = str(Path(__file__).expanduser().absolute().parent)
 sys.path.append(cur_dir)
 
 from clitypes import LogdirPath
-from monitor import Monitor
-from bench_utils import get_uci_dataset, store_dict_as_h5, tf_data_tuple, to_tf_scope, OsPath
-from barelybiasedgp.selection import uniform_greedy_selection
+from bench_utils import get_uci_dataset, store_dict_as_h5, tf_data_tuple
+from bench_sgpr_utils import (
+    initialize_ips,
+    initialize_sgpr,
+    create_metrics_func,
+    create_keep_parameters_func,
+    create_optimizer_metrics_func,
+    create_monitor,
+    update_optimizer_logs,
+)
 from barelybiasedgp.scipy_copy import Scipy
 
 CompileType = Union[Literal["xla", "tf", "none"], Union[Literal["xla", "tf"], None]]
@@ -161,142 +168,6 @@ def main(
     click.echo("<=== Finished")
 
 
-def initialize_ips(
-    rng,
-    data,
-    model,
-    numips: int,
-    subset_size: int,
-    threshold: float = 0.001,
-):
-    x, _ = data
-    kernel = model.kernel
-    noise = float(model.likelihood.variance.numpy())
-    iv, _ = uniform_greedy_selection(x, subset_size, numips, kernel, noise, threshold, rng=rng)
-    model.inducing_variable.Z.assign(iv)
-
-
-def initialize_sgpr(
-    rng,
-    data,
-    numips: int,
-    noise: float,
-):
-    x, _ = data
-    dim = x.shape[-1]
-    lengthscale = [1.0] * dim
-    kernel = gpflow.kernels.Matern32(lengthscales=lengthscale)
-    x = np.array(x)
-    dataset_size = x.shape[0]
-    subset_indices = rng.choice(dataset_size, size=numips, replace=False)
-    subset_mask = np.array([False] * dataset_size)
-    subset_mask[subset_indices] = True
-    iv = to_tf_scope(x[subset_mask])
-    mean = gpflow.mean_functions.Constant()
-    model = gpflow.models.SGPR(
-        data, kernel=kernel, mean_function=mean, inducing_variable=iv, noise_variance=noise
-    )
-    return model
-
-
-def compile_function(fn: Callable, compile_type: CompileType) -> Callable:
-    if compile_type == "xla":
-        return tf.function(fn, jit_compile=True)
-    elif compile_type == "tf":
-        return tf.function(fn)
-    return fn
-
-
-def update_optimizer_logs(res: OptimizeResult, store: Dict):
-    new_values = {
-        "status": [res.status],
-        "nit": [res.nit],
-        "nfev": [res.nfev],
-        "objective": [res.fun],
-    }
-
-    if store == {}:
-        store.update(new_values.items())
-
-    store.update({key: value + new_values[key] for key, value in store.items()})
-
-
-def create_monitor(
-    holdout_interval: int,
-    logdir: OsPath,
-    funcs: Optional[Dict[str, Callable]] = None,
-):
-    funcs_dict: Dict[str, Callable] = {} if funcs is None else funcs
-    monitor_logdir = Path(logdir, "tb")
-    monitor = Monitor(monitor_logdir, holdout_interval=holdout_interval)
-
-    for name, func in funcs_dict.items():
-        monitor.add_callback(name, func)
-
-    return monitor
-
-
-def numpy_results(metric_fn: Callable):
-    def _map(value):
-        if isinstance(value, tf.Tensor):
-            return value.numpy()
-        return np.array(value)
-
-    values = metric_fn()
-    return tf.nest.map_structure(_map, values)
-
-
-def create_optimizer_metrics_func(values):
-    if not isinstance(values, dict):
-        raise ValueError("Expected dictionary")
-
-    def _optimizer_metrics(*args, **kwargs):
-        select_keys = ["nit", "nfev", "objective"]
-        if values == {}:
-            return
-        if any([key not in values or values[key] == [] for key in select_keys]):
-            return
-
-        return {key: values[key][-1] for key in select_keys}
-
-    return _optimizer_metrics
-
-
-def create_metrics_func(model, data, compile_flag: CompileType, prefix: Optional[str] = None):
-    prefix = "" if prefix is None else f"{prefix}_"
-
-    def _metrics():
-        x, y = data
-        loss = model.training_loss()
-        predictions, variance = model.predict_f(x)
-        err = y - predictions
-        logden = model.likelihood.predict_log_density(predictions, variance, y)
-        err_sq = tf.square(err)
-        rmse = tf.sqrt(tf.reduce_mean(err_sq))
-        nlpd = -tf.reduce_mean(logden)
-        return {f"{prefix}_rmse": rmse, f"{prefix}_nlpd": nlpd, "loss": loss}
-
-    compiled_function = compile_function(_metrics, compile_flag)
-
-    def _numpy_metrics(*args, **kwargs):
-        return numpy_results(compiled_function)
-
-    return _numpy_metrics
-
-
-def create_keep_parameters_func(model: gpflow.models.SGPR, only_trainable: bool = True):
-    def _params(*args, **kwargs):
-        params = {}
-        for name, param in parameter_dict(model).items():
-            if only_trainable and not param.trainable:
-                continue
-            name = name.lstrip(".")
-            params[name] = param.numpy()
-        return params
-
-    return _params
-
-
 if __name__ == "__main__":
-    pprint.pprint(dict(os.environ), width = 1)
+    pprint.pprint(dict(os.environ), width=1)
     main()

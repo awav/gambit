@@ -10,7 +10,7 @@ compile = "xla"
 rootdir = "logs_sgpr"
 seed = [111]
 dataset = ["3droad"]
-numips = [1000, 2000, 3000]
+numips = [500, 600, 700, 800, 900, 1000, 2000, 3000]
 maxiters = 1000
 
 [flags]

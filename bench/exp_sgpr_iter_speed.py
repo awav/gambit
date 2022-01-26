@@ -1,12 +1,9 @@
-from functools import partial
 import sys
 import json
-from scipy.optimize import OptimizeResult
 from pathlib import Path
-from typing import Callable, Optional, Union, Tuple, NamedTuple, Dict
+from typing import Callable, Tuple, NamedTuple
 from typing_extensions import Literal
 import click
-from gpflow.utilities.traversal import parameter_dict
 import numpy as np
 import tensorflow as tf
 import gpflow
@@ -16,12 +13,8 @@ cur_dir = str(Path(__file__).expanduser().absolute().parent)
 sys.path.append(cur_dir)
 
 from clitypes import LogdirPath
-from monitor import Monitor
 from bench_utils import BenchRunner, get_uci_dataset, store_dict_as_h5, tf_data_tuple, to_tf_scope
-from barelybiasedgp.selection import uniform_greedy_selection
-from barelybiasedgp.scipy_copy import Scipy
 
-CompileType = Union[Literal["xla", "tf", "none"], Union[Literal["xla", "tf"], None]]
 Dataset = Tuple[np.ndarray, np.ndarray]
 DatasetBundle = NamedTuple
 
