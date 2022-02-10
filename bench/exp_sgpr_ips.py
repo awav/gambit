@@ -274,7 +274,7 @@ def create_metrics_func(model, data, compile_flag: CompileType, prefix: Optional
         err_sq = tf.square(err)
         rmse = tf.sqrt(tf.reduce_mean(err_sq))
         nlpd = -tf.reduce_mean(logden)
-        return {f"{prefix}_rmse": rmse, f"{prefix}_nlpd": nlpd, "loss": loss}
+        return {f"{prefix}rmse": rmse, f"{prefix}nlpd": nlpd, "loss": loss}
 
     compiled_function = compile_function(_metrics, compile_flag)
 
