@@ -4,6 +4,7 @@ import click
 import numpy as np
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import matplotlib.ticker as tkr
 from bench_utils import select_from_report_data, expand_paths_with_wildcards
 
 
@@ -22,7 +23,7 @@ def metric_vs_numips(files):
     click.echo("===> start")
     files = files if isinstance(files, (list, tuple)) else [files]
     expanded_files = expand_paths_with_wildcards(files)
-    join_by = ["dataset_name", "compile"]
+    join_by = ["dataset_name", "compile", "grad_ips"]
     select_keys = ["seed", "numips", "final_metric"]
     data = select_from_report_data(expanded_files, join_by, select_keys)
 
@@ -60,10 +61,15 @@ def metric_vs_numips(files):
             avg_metric[ips_key] = metric
         return avg_metric
 
-    fig, ax = plt.subplots(1, 1)
+    fig, ax_rmse = plt.subplots(1, 1)
+    fig, ax_nlpd = plt.subplots(1, 1)
+    yticks = []
+    xticks = []
 
     for key, fields in data.items():
-        dataname, backend = key
+        dataname, backend, grad_ips = key
+        label = label_from_key(key)
+        marker = marker_from_key(key)
         ips = np.array(fields["numips"])
         metric = np.array(fields["final_metric"])
         seed = np.array(fields["seed"])
@@ -74,27 +80,36 @@ def metric_vs_numips(files):
 
         combined = combine_by_ips(ips_sorted, seed_sorted, metric_sorted)
         avg = summary_by_ips(combined)
-
         ips_sorted_unique = np.unique(ips_sorted)
-        test_rmse = [avg[ip]["test_rmse"] for ip in ips_sorted_unique]
-        test_rmse_mu, test_rmse_std = zip(*test_rmse)
-        test_rmse_mu = np.array(test_rmse_mu)
-        test_rmse_std = np.array(test_rmse_std)
 
-        line = ax.plot(ips_sorted_unique, test_rmse_mu)
+        def get_test_metric(name):
+            metrics = [avg[ip][name] for ip in ips_sorted_unique]
+            mu, std = zip(*metrics)
+            mu = np.array(mu)
+            std = np.array(std)
+            return mu, std
+
+        rmse_mu, rmse_std = get_test_metric("test_rmse")
+        nlpd_mu, nlpd_std = get_test_metric("test_nlpd")
+
+        yticks += list(rmse_mu)
+        xticks += list(ips_sorted_unique)
+
+        # rmse_min = np.min(rmse_mu)
+        # rmse_max = np.max(rmse_mu)
+        # tick_frac_size = 10
+        # rmse_tick_frac = (rmse_max - rmse_min) / tick_frac_size
+        # pows = np.linspace(0, 10, 20)
+        # tick_steps = np.array([0, *[np.power(2, p) for p in pows]]) * rmse_tick_frac + rmse_min
+
+        line = ax_rmse.plot(ips_sorted_unique, rmse_mu, label=label)
         color = line[0].get_color()
+        ax_rmse.scatter(ips_sorted_unique, rmse_mu, cmap=color, marker=marker)
+        ax_rmse.legend()
 
-        for i, ip in enumerate(ips_sorted_unique):
-            mu = test_rmse_mu[i]
-            std = test_rmse_std[i]
-            mu_min, mu_max = (mu - std), (mu + std)
-            s = 10
-            ip_min = ip - s
-            ip_max = ip + s
-            ax.vlines(ip, mu_min, mu_max, color=color)
-            ax.hlines(mu_min, ip_min, ip_max)
-            ax.hlines(mu_max, ip_min, ip_max)
-            ax.set_xticks(ips_sorted_unique)
+        ax_nlpd.plot(ips_sorted_unique, nlpd_mu, label=label)
+        ax_nlpd.scatter(ips_sorted_unique, nlpd_mu, cmap=color, marker=marker)
+        ax_nlpd.legend()
 
         print(f"-> key={key}")
         print(f"=> ips={ips_sorted}")
@@ -102,12 +117,71 @@ def metric_vs_numips(files):
         print(f"=> metric={metric_sorted}")
         print(f"=> combined={combined}")
         print(f"=> avg={avg}")
-        print(f"=> test_rmse_mu={test_rmse_mu}")
-        print(f"=> test_rmse_std={test_rmse_std}")
+        print(f"=> test_rmse_mu={rmse_mu}")
+        print(f"=> test_rmse_std={rmse_std}")
 
+    xticks = np.sort(np.unique(xticks))
+    # ax_rmse.set_xticks(xticks)
+    # ax_nlpd.set_xticks(xticks)
+
+    ax_rmse.xaxis.set_major_locator(tkr.MultipleLocator(2000))
+    ax_rmse.xaxis.set_minor_locator(tkr.MultipleLocator(500))
+    ax_rmse.yaxis.set_major_locator(tkr.MultipleLocator(0.05))
+    ax_rmse.yaxis.set_minor_locator(tkr.MultipleLocator(0.01))
+    ax_rmse.set_ylabel("RMSE")
+    ax_rmse.set_xlabel("Number of inducing points")
+
+    ax_nlpd.xaxis.set_major_locator(tkr.MultipleLocator(2000))
+    ax_nlpd.xaxis.set_minor_locator(tkr.MultipleLocator(500))
+    ax_nlpd.yaxis.set_major_locator(tkr.MultipleLocator(0.1))
+    ax_nlpd.yaxis.set_minor_locator(tkr.MultipleLocator(0.05))
+    ax_nlpd.set_ylabel("NLPD")
+    ax_nlpd.set_xlabel("Number of inducing points")
+
+
+    border = 800
+    minx, maxx = -500, border
+    shade_color = "blue"
+    shade_alpha = 0.1
+
+    ax_rmse.axvspan(minx, maxx, alpha=shade_alpha, color=shade_color)
+    ax_rmse.axvline(border, color=shade_color, linestyle="--")
+    ax_rmse.set_xlim(0, np.max(xticks) + 500)
+    ax_rmse.yaxis.grid(visible=True, which="both", linestyle=":")
+
+    ax_nlpd.axvspan(minx, maxx, alpha=shade_alpha, color=shade_color)
+    ax_nlpd.axvline(border, color=shade_color, linestyle="--")
+    ax_nlpd.set_xlim(0, np.max(xticks) + 500)
+    ax_nlpd.yaxis.grid(visible=True, which="both", linestyle=":")
+
+    # ax_rmse.grid(axis="y")
+    # ax_nlpd.grid(axis="y")
     plt.tight_layout()
     plt.show()
     click.echo("<== finished")
+
+
+def label_from_key(key) -> str:
+    _, backend, grad_ips = key
+    label_suffix = " (trainable ips)" if grad_ips else ""
+    label = f"{backend_name(backend)}{label_suffix}"
+    return label
+
+
+def marker_from_key(key) -> str:
+    marker_key = key[1:]
+    markers = {
+        ("tf", True): "X",
+        ("tf", False): "X",
+        ("xla", True): ".",
+        ("xla", False): ".",
+    }
+    return markers[marker_key]
+
+
+def backend_name(backend: str) -> str:
+    names = {"xla": "TF-eXLA", "tf": "TF"}
+    return names[backend]
 
 
 if __name__ == "__main__":
