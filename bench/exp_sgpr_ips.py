@@ -2,15 +2,12 @@ import sys
 import os
 import json
 import pprint
-from scipy.optimize import OptimizeResult
 from pathlib import Path
-from typing import Callable, Optional, Union, Tuple, NamedTuple, Dict
+from typing import Union, Tuple, NamedTuple
 from typing_extensions import Literal
 import click
-from gpflow.utilities.traversal import parameter_dict
 import numpy as np
 import tensorflow as tf
-import gpflow
 
 cur_dir = str(Path(__file__).expanduser().absolute().parent)
 sys.path.append(cur_dir)

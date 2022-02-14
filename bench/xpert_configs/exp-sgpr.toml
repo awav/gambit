@@ -3,30 +3,31 @@ cmd = 'python ./exp_sgpr.py --logdir "{uid}"'
 
 [[exp]]
 cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -s {seed} -d {dataset} -m {numips} -ni {maxiters} -np {numphases}'
-uid = './{rootdir}/{name}/{dataset}/{limit}/sgpr_ips{numips}_np{numphases}_ni{maxiters}/{seed}'
+uid = './{rootdir}/{name}/{dataset}/{limit}/sgpr_ips{numips}_np{numphases}_ni{maxiters}_ss{subset_size}/{seed}'
 
 name = "ips"
 limit = "1GB"
-rootdir = "logs_sgpr"
+rootdir = "logs_sgpr_2"
 seed = [111]
 dataset = ["3droad"]
-numips = [500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
+subset_size = 100000
+numips = [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
 numphases = 10
 maxiters = 1000  # per phase
 
 
-[[exp]]
-cmd = '{cmd} -s {seed} -d {dataset} -m {numips} -ni {maxiters} -np {numphases} -c {backend}'
-uid = './{rootdir}/{name}/{dataset}/{backend}/sgpr_ips{numips}_np{numphases}_ni{maxiters}/{seed}'
+# [[exp]]
+# cmd = '{cmd} -s {seed} -d {dataset} -m {numips} -ni {maxiters} -np {numphases} -c {backend}'
+# uid = './{rootdir}/{name}/{dataset}/{backend}/sgpr_ips{numips}_np{numphases}_ni{maxiters}/{seed}'
 
-name = "ips"
-rootdir = "logs_sgpr"
-backend = "tf"
-seed = [111]
-dataset = ["3droad"]
-numips = [500, 600, 700, 800, 900, 1000]
-numphases = 10
-maxiters = 1000  # per phase
+# name = "ips"
+# rootdir = "logs_sgpr_2"
+# backend = "tf"
+# seed = [111]
+# dataset = ["3droad"]
+# numips = [500, 600, 700, 800, 900]
+# numphases = 10
+# maxiters = 1000  # per phase
 
 ########
 # houseelectric with 100 training steps

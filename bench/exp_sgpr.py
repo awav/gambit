@@ -2,15 +2,12 @@ import sys
 import os
 import json
 import pprint
-from scipy.optimize import OptimizeResult
 from pathlib import Path
-from typing import Callable, Optional, Dict
 from typing_extensions import Literal
 import click
-from gpflow.utilities import parameter_dict, set_trainable
+from gpflow.utilities import set_trainable
 import numpy as np
 import tensorflow as tf
-import gpflow
 
 cur_dir = str(Path(__file__).expanduser().absolute().parent)
 sys.path.append(cur_dir)
@@ -20,7 +17,7 @@ from bench_utils import get_uci_dataset, store_dict_as_h5, tf_data_tuple
 from barelybiasedgp.scipy_copy import Scipy
 
 from bench_sgpr_utils import (
-    initialize_ips,
+    make_initialize_ips_function,
     initialize_sgpr,
     create_metrics_func,
     create_keep_parameters_func,
@@ -97,6 +94,7 @@ def main(
     tf.random.set_seed(seed)
 
     noise = 0.1
+    click.echo("==> Initialize SGPR")
     model = initialize_sgpr(rng, tf_data, numips, noise)
 
     opt_logs = {}
@@ -114,18 +112,24 @@ def main(
         monitor.add_callback("metric", monitor_metric_fn, metric_holdout_interval)
 
     rng = np.random.RandomState(seed)
-    initialize_ips(rng, data, model, numips, subset_size)
     set_trainable(model.inducing_variable, False)
 
     train_vars = model.trainable_variables
     scipy_options = dict(maxiter=maxiter_per_phase)
     loss_fn = model.training_loss_closure(compile=False)
 
+    threshold = 1e-6
+    initialize_ips_fn = make_initialize_ips_function(
+        rng, data, model, numips, subset_size, threshold=threshold
+    )
+
+    click.echo("==> Start phases")
     for ph in range(num_phases):
         click.echo(f"---> Phase {ph}")
         rng = np.random.RandomState(seed)
-        initialize_ips(rng, data, model, numips, subset_size)
+        initialize_ips_fn()
 
+        click.echo(f"---> optimize for phase {ph}")
         opt = Scipy()
         res = opt.minimize(
             loss_fn,
