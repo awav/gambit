@@ -10,10 +10,24 @@ compile = "xla"
 rootdir = "logs_sgpr"
 seed = [111]
 dataset = ["3droad"]
-numips = [1000, 2000, 3000]
+numips = [500, 600, 700, 800, 900, 1000, 2000, 3000]
 maxiters = 1000
+
+
+[[exp]]
+cmd = '{cmd}  -c {backend} -s {seed} -d {dataset} -m {numips} -mi {maxiters}'
+uid = './{rootdir}/{name}/{dataset}/{backend}/sgpr_tips{numips}_i{maxiters}/{seed}'
+
+name = "ips"
+backend = "tf"
+rootdir = "logs_sgpr"
+seed = [111]
+dataset = ["3droad"]
+numips = [500, 600, 700, 800, 900, 1000]
+maxiters = 1000
+
 
 [flags]
 restart = false
-num_proc = 1
-gpu_indices = ["0"]
+num_proc = 4
+gpu_indices = ["0", "1", "2", "3"]

@@ -1,27 +1,24 @@
-from functools import partial
 import sys
 import json
-from scipy.optimize import OptimizeResult
 from pathlib import Path
-from typing import Callable, Optional, Union, Tuple, NamedTuple, Dict
+from typing import Callable, Tuple, NamedTuple
 from typing_extensions import Literal
 import click
-from gpflow.utilities.traversal import parameter_dict
 import numpy as np
 import tensorflow as tf
-import gpflow
 from gpflow.utilities import set_trainable
+from bench_sgpr_utils import (
+    initialize_sgpr,
+    compile_function,
+    CompileType
+)
 
 cur_dir = str(Path(__file__).expanduser().absolute().parent)
 sys.path.append(cur_dir)
 
 from clitypes import LogdirPath
-from monitor import Monitor
 from bench_utils import BenchRunner, get_uci_dataset, store_dict_as_h5, tf_data_tuple, to_tf_scope
-from barelybiasedgp.selection import uniform_greedy_selection
-from barelybiasedgp.scipy_copy import Scipy
 
-CompileType = Union[Literal["xla", "tf", "none"], Union[Literal["xla", "tf"], None]]
 Dataset = Tuple[np.ndarray, np.ndarray]
 DatasetBundle = NamedTuple
 
@@ -116,37 +113,6 @@ def main(
         f"spent_avg={elap_mu}, spent_std={elap_std}, "
         f"mem_avg={mem_mu}, mem_std={mem_std}"
     )
-
-
-def initialize_sgpr(
-    rng,
-    data,
-    numips: int,
-    noise: float,
-):
-    x, _ = data
-    dim = x.shape[-1]
-    lengthscale = [1.0] * dim
-    kernel = gpflow.kernels.Matern32(lengthscales=lengthscale)
-    x = np.array(x)
-    dataset_size = x.shape[0]
-    subset_indices = rng.choice(dataset_size, size=numips, replace=False)
-    subset_mask = np.array([False] * dataset_size)
-    subset_mask[subset_indices] = True
-    iv = to_tf_scope(x[subset_mask])
-    mean = gpflow.mean_functions.Constant()
-    model = gpflow.models.SGPR(
-        data, kernel=kernel, mean_function=mean, inducing_variable=iv, noise_variance=noise
-    )
-    return model
-
-
-def compile_function(fn: Callable, compile_type: CompileType) -> Callable:
-    if compile_type == "xla":
-        return tf.function(fn, jit_compile=True)
-    elif compile_type == "tf":
-        return tf.function(fn)
-    return fn
 
 
 if __name__ == "__main__":

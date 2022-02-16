@@ -17,7 +17,6 @@ __metric_choices = click.Choice(["test_rmse", "test_nlpd"])
 
 
 @main.command()
-# @click.option("-m", "--metric", type=__metric_choices, default="test_rmse")
 @click.argument("files", nargs=-1, type=click.Path(dir_okay=False))
 def metric_vs_numips(files):
     click.echo("===> start")
