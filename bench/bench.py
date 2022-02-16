@@ -59,12 +59,14 @@ class CommandContext:
 
         def run_and_collect_stat(func, dev: Union[str, None]):
             if dev is not None:
+                dev_name = dev.name.split(":", 1)[-1]
                 time0 = time()
+                tf_exp.reset_memory_stats(dev_name)
                 _ = func()
                 elapsed = time() - time0
-                dev_name = dev.name.split(":", 1)[-1]
-                mem = tf_exp.get_memory_info(dev_name)["peak"]
-                return elapsed, mem
+                mem_peak = tf_exp.get_memory_info(dev_name)["peak"]
+                # mem_curr = tf_exp.get_memory_info(dev_name)["current"]
+                return elapsed, mem_peak
 
             func_tuple = (func, [], {})
             time0 = time()

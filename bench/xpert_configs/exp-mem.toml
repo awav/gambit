@@ -1,0 +1,16 @@
+cmd = 'python ./exp_mem.py -l "{uid}"'
+
+[[exp]]
+cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd}  -c {compile} -s {seed} -m "{limit}" -n {size}'
+uid = './{rootdir}/mem_{limit}_{size}/{seed}'
+
+limit = ["100MB", "1GB", "2GB", "5GB", "7GB", "10GB", "20GB"]
+compile = "xla"
+rootdir = "logs_mem"
+seed = [111]
+size = [1000, 10_000, 100_000, 250_000, 500_000, 750_000, 1_000_000]
+
+[flags]
+restart = false
+num_proc = 4
+gpu_indices = ["0", "1", "2", "3"]
