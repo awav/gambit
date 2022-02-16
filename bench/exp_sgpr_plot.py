@@ -60,15 +60,23 @@ def metric_vs_numips(files):
             avg_metric[ips_key] = metric
         return avg_metric
 
-    fig, ax_rmse = plt.subplots(1, 1)
-    fig, ax_nlpd = plt.subplots(1, 1)
+    plt.rcParams.update(
+        {
+            "font.size": 9,
+            # "figure.subplot.left": 0,
+            # "figure.subplot.bottom": 0,
+            "figure.subplot.right": 1,
+            "figure.subplot.top": 1,
+        }
+    )
+    figsize = (9, 3)
+    fig_rmse, (ax_rmse, ax_nlpd) = plt.subplots(1, 2, figsize=figsize)
+    # fig_nlpd, ax_nlpd = plt.subplots(1, 1, figsize=figsize)
     yticks = []
     xticks = []
 
     for key, fields in data.items():
         dataname, backend, grad_ips = key
-        label = label_from_key(key)
-        marker = marker_from_key(key)
         ips = np.array(fields["numips"])
         metric = np.array(fields["final_metric"])
         seed = np.array(fields["seed"])
@@ -101,13 +109,16 @@ def metric_vs_numips(files):
         # pows = np.linspace(0, 10, 20)
         # tick_steps = np.array([0, *[np.power(2, p) for p in pows]]) * rmse_tick_frac + rmse_min
 
-        line = ax_rmse.plot(ips_sorted_unique, rmse_mu, label=label)
+        line = ax_rmse.plot(ips_sorted_unique, rmse_mu)
         color = line[0].get_color()
-        ax_rmse.scatter(ips_sorted_unique, rmse_mu, cmap=color, marker=marker)
+
+        scatter_settings = scatter_settings_from_key(key, color)
+
+        ax_rmse.scatter(ips_sorted_unique, rmse_mu, **scatter_settings)
         ax_rmse.legend()
 
-        ax_nlpd.plot(ips_sorted_unique, nlpd_mu, label=label)
-        ax_nlpd.scatter(ips_sorted_unique, nlpd_mu, cmap=color, marker=marker)
+        ax_nlpd.plot(ips_sorted_unique, nlpd_mu)
+        ax_nlpd.scatter(ips_sorted_unique, nlpd_mu, **scatter_settings)
         ax_nlpd.legend()
 
         print(f"-> key={key}")
@@ -137,25 +148,28 @@ def metric_vs_numips(files):
     ax_nlpd.set_ylabel("NLPD")
     ax_nlpd.set_xlabel("Number of inducing points")
 
-
     border = 800
     minx, maxx = -500, border
-    shade_color = "blue"
+    shade_color = "tab:red"
     shade_alpha = 0.1
 
     ax_rmse.axvspan(minx, maxx, alpha=shade_alpha, color=shade_color)
-    ax_rmse.axvline(border, color=shade_color, linestyle="--")
+    ax_rmse.axvline(border, alpha=shade_alpha + 0.3, color=shade_color, linestyle="--")
     ax_rmse.set_xlim(0, np.max(xticks) + 500)
     ax_rmse.yaxis.grid(visible=True, which="both", linestyle=":")
+    ax_rmse.spines['right'].set_visible(False)
+    ax_rmse.spines['top'].set_visible(False)
 
     ax_nlpd.axvspan(minx, maxx, alpha=shade_alpha, color=shade_color)
-    ax_nlpd.axvline(border, color=shade_color, linestyle="--")
+    ax_nlpd.axvline(border, alpha=shade_alpha + 0.3, color=shade_color, linestyle="--")
     ax_nlpd.set_xlim(0, np.max(xticks) + 500)
     ax_nlpd.yaxis.grid(visible=True, which="both", linestyle=":")
+    ax_nlpd.spines['right'].set_visible(False)
+    ax_nlpd.spines['top'].set_visible(False)
 
     # ax_rmse.grid(axis="y")
     # ax_nlpd.grid(axis="y")
-    plt.tight_layout()
+    plt.tight_layout(w_pad=0.5)
     plt.show()
     click.echo("<== finished")
 
@@ -167,15 +181,17 @@ def label_from_key(key) -> str:
     return label
 
 
-def marker_from_key(key) -> str:
+def scatter_settings_from_key(key, color) -> Dict:
+    label = label_from_key(key)
     marker_key = key[1:]
+    settings = dict(cmap=color, label=label)
     markers = {
-        ("tf", True): "X",
-        ("tf", False): "X",
-        ("xla", True): ".",
-        ("xla", False): ".",
+        ("tf", True): dict(marker="o", facecolors="none", edgecolors=color),
+        ("tf", False): dict(marker="o", facecolors="none", edgecolors=color),
+        ("xla", True): dict(marker="."),
+        ("xla", False): dict(marker="."),
     }
-    return markers[marker_key]
+    return {**settings, **markers[marker_key]}
 
 
 def backend_name(backend: str) -> str:
