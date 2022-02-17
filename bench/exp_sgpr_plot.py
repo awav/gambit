@@ -102,13 +102,6 @@ def metric_vs_numips(files):
         yticks += list(rmse_mu)
         xticks += list(ips_sorted_unique)
 
-        # rmse_min = np.min(rmse_mu)
-        # rmse_max = np.max(rmse_mu)
-        # tick_frac_size = 10
-        # rmse_tick_frac = (rmse_max - rmse_min) / tick_frac_size
-        # pows = np.linspace(0, 10, 20)
-        # tick_steps = np.array([0, *[np.power(2, p) for p in pows]]) * rmse_tick_frac + rmse_min
-
         line = ax_rmse.plot(ips_sorted_unique, rmse_mu)
         color = line[0].get_color()
 

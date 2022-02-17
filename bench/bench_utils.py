@@ -1,6 +1,6 @@
 from functools import reduce
 from operator import iconcat
-from typing import Any, Callable, Dict, Sequence, Tuple, Union
+from typing import Any, Callable, Dict, Sequence, Union
 import numpy as np
 import tensorflow as tf
 from gpflow.config import default_float

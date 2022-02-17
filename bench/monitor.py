@@ -4,7 +4,6 @@ import tensorflow as tf
 import gpflow
 from tensorboardX import SummaryWriter
 import numpy as np
-from torch.functional import Tensor
 
 
 class Monitor:
