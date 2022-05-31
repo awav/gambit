@@ -48,6 +48,7 @@ The conclusion is:
 ### Operation transformations
 
 Euclidean distance in $\mathbb{R}^K$ space between $A$ and $B$ vector collections with lengths $N$ and $M$ respectively, such that $A$ is a N-by-K matrix and $B$ is a M-by-K matrix:
+
 $$
 D_{i,j} = ||A_{i,:} - B_{j,:}||^ 2
 $$
