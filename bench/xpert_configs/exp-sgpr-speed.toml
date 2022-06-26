@@ -3,7 +3,7 @@ cmd = 'python ./exp_sgpr_iter_speed.py -l "{uid}"'
 ##################################################
 # No gradient
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} --no-grad-ips -c {compile} -s {seed} -d {dataset} -m {numips} -r {repeat} -w {warmup}'
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit}" {cmd} --no-grad-ips -c {compile} -s {seed} -d {dataset} -m {numips} -r {repeat} -w {warmup}'
 uid = './{rootdir}/{compile}_{limit}_nograd/{dataset}_ips{numips}/{seed}'
 
 warmup = 1
@@ -19,7 +19,7 @@ numips = [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
 # Include gradient evaluation
 
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} --grad-ips -c {compile} -s {seed} -d {dataset} -m {numips} -r {repeat} -w {warmup}'
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit}" {cmd} --grad-ips -c {compile} -s {seed} -d {dataset} -m {numips} -r {repeat} -w {warmup}'
 uid = './{rootdir}/{compile}_{limit}_grad/{dataset}_ips{numips}/{seed}'
 
 warmup = 1

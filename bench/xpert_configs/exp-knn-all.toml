@@ -3,7 +3,7 @@ cmd = 'python ./exp_knn.py -l "{uid}"'
 ##################################################
 # Random L2 TF and JAX
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -b {backend} -s {seed} -d random_n{datasize}_d{datadim}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit}" {cmd} -b {backend} -s {seed} -d random_n{datasize}_d{datadim}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
 uid = './{rootdir}/{backend}_{limit}/{distance}_random_n{datasize}_d{datadim}_m{querysize}/{seed}'
 
 warmup = 1
@@ -19,7 +19,7 @@ querysize = [10000]
 
 # Random L2 TF-pure and JAX-pure
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -b {backend} -s {seed} -d random_n{datasize}_d{datadim}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit}" {cmd} -b {backend} -s {seed} -d random_n{datasize}_d{datadim}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
 uid = './{rootdir}/{backend}/{distance}_random_n{datasize}_d{datadim}_m{querysize}/{seed}'
 
 warmup = 1
@@ -51,7 +51,7 @@ querysize = [10000]
 ##################################################
 # Random (L1 and cosine) TF and JAX
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -b {backend} -s {seed} -d random_n{datasize}_d{datadim}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit}" {cmd} -b {backend} -s {seed} -d random_n{datasize}_d{datadim}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
 uid = './{rootdir}/{backend}_{limit}/{distance}_random_n{datasize}_d{datadim}_m{querysize}/{seed}'
 
 warmup = 1
@@ -67,7 +67,7 @@ querysize = [10000]
 
 # Random (L1 and cosine) TF-pure and JAX-pure
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -b {backend} -s {seed} -d random_n{datasize}_d{datadim}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit}" {cmd} -b {backend} -s {seed} -d random_n{datasize}_d{datadim}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
 uid = './{rootdir}/{backend}/{distance}_{dataset}_m{querysize}/{seed}'
 
 warmup = 1
@@ -100,7 +100,7 @@ querysize = [10000]
 ##################################################
 # Cosine glove TF and JAX
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -b {backend} -s {seed} -d {dataset} -r {repeat} -w {warmup} -c {distance}'
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit}" {cmd} -b {backend} -s {seed} -d {dataset} -r {repeat} -w {warmup} -c {distance}'
 uid = './{rootdir}/{backend}_{limit}/{distance}_{dataset}/{seed}'
 
 warmup = 1
@@ -115,7 +115,7 @@ querysize = [10000]
 
 # Cosine glove TF-pure and JAX-pure
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -b {backend} -s {seed} -d {dataset} -r {repeat} -w {warmup} -c {distance}'
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit}" {cmd} -b {backend} -s {seed} -d {dataset} -r {repeat} -w {warmup} -c {distance}'
 uid = './{rootdir}/{backend}/{distance}_{dataset}/{seed}'
 
 warmup = 1
@@ -145,7 +145,7 @@ querysize = [10000]
 ################################
 # L2/L1 mnist/fashion TF and JAX
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -b {backend} -s {seed} -d {dataset}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit}" {cmd} -b {backend} -s {seed} -d {dataset}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
 uid = './{rootdir}/{backend}_{limit}/{distance}_{dataset}_m{querysize}/{seed}'
 
 warmup = 1
@@ -161,7 +161,7 @@ querysize = [10000]
 
 # L2/L1 mnist/fashion TF-pure and JAX-pure
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -b {backend} -s {seed} -d {dataset}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit}" {cmd} -b {backend} -s {seed} -d {dataset}_m{querysize} -r {repeat} -w {warmup} -c {distance}'
 uid = './{rootdir}/{backend}/{distance}_{dataset}_m{querysize}/{seed}'
 
 warmup = 1

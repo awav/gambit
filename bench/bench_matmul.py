@@ -26,13 +26,13 @@ _gpu_dev = _gpu_devices[0] if _gpu_devices else None
 __default_gambit_logs = "./default_gambit_logs"
 
 
-# XLA_FLAGS="--xla_try_split_tensor_size=100MB --xla_enable_hlo_passes_only=split-intermediate-tensors,broadcast-simplifier,dce,cholesky_expander,triangular_solve_expander,bitcast_dtypes_expander --xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-test-100m" python bench_matmul.py -s 999 -n 1000753 -d 1000
+# XLA_FLAGS="--xla_tensor_size_threshold=100MB --xla_enable_hlo_passes_only=tensor-splitter,broadcast-simplifier,dce,cholesky_expander,triangular_solve_expander,bitcast_dtypes_expander --xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-test-100m" python bench_matmul.py -s 999 -n 1000753 -d 1000
 
-# XLA_FLAGS="--xla_try_split_tensor_size=100MB" python bench_matmul.py -s 999 -n 1000753 -d 1000
-# XLA_FLAGS="--xla_try_split_tensor_size=10GB" python bench_matmul.py -s 999 -n 1000753 -d 1000
+# XLA_FLAGS="--xla_tensor_size_threshold=100MB" python bench_matmul.py -s 999 -n 1000753 -d 1000
+# XLA_FLAGS="--xla_tensor_size_threshold=10GB" python bench_matmul.py -s 999 -n 1000753 -d 1000
 
-# XLA_FLAGS="--xla_try_split_tensor_size=100MB" python bench_matmul.py -s 999 -n 1000753 -d 1000
-# XLA_FLAGS="--xla_try_split_tensor_size=10GB" python bench_matmul.py -s 999 -n 1000753 -d 1000
+# XLA_FLAGS="--xla_tensor_size_threshold=100MB" python bench_matmul.py -s 999 -n 1000753 -d 1000
+# XLA_FLAGS="--xla_tensor_size_threshold=10GB" python bench_matmul.py -s 999 -n 1000753 -d 1000
 
 @click.command()
 @click.option("-s", "--seed", type=int, default=None)

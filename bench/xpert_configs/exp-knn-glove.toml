@@ -2,7 +2,7 @@ cmd = 'python ./exp_knn.py -l "{uid}"'
 
 # Cosine glove TF and JAX
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -b {backend} -s {seed} -d {dataset} -r {repeat} -w {warmup} -c {distance}'
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit}" {cmd} -b {backend} -s {seed} -d {dataset} -r {repeat} -w {warmup} -c {distance}'
 uid = './{rootdir}/{backend}_{limit}/{distance}_{dataset}/{seed}'
 
 warmup = 1

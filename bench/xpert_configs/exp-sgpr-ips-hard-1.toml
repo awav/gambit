@@ -1,7 +1,7 @@
 cmd = 'python ./exp_sgpr_ips.py -l "{uid}"'
 
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd}  -c {compile} -s {seed} -d {dataset} -m {numips} -mi {maxiters}'
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit}" {cmd}  -c {compile} -s {seed} -d {dataset} -m {numips} -mi {maxiters}'
 uid = './{rootdir}/{name}/{dataset}/{limit}/sgpr_tips{numips}_i{maxiters}/{seed}'
 
 name = "ips"

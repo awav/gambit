@@ -2,7 +2,7 @@
 cmd = 'python ./exp_sgpr.py --logdir "{uid}"'
 
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -s {seed} -d {dataset} -m {numips} -ni {maxiters} -np {numphases}'
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit}" {cmd} -s {seed} -d {dataset} -m {numips} -ni {maxiters} -np {numphases}'
 uid = './{rootdir}/{name}/{dataset}/{limit}/sgpr_ips{numips}_np{numphases}_ni{maxiters}_ss{subset_size}/{seed}'
 
 name = "ips"
@@ -32,7 +32,7 @@ maxiters = 1000  # per phase
 ########
 # houseelectric with 100 training steps
 # [[exp]]
-# cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd} -s {seed} -d {dataset} -m {numips} -ni {maxiters} -np {numphases}'
+# cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit}" {cmd} -s {seed} -d {dataset} -m {numips} -ni {maxiters} -np {numphases}'
 # uid = './{rootdir}/{name}/{dataset}/{limit}/sgpr_ips{numips}_np{numphases}_ni{maxiters}/{seed}'
 
 # name = "ips"

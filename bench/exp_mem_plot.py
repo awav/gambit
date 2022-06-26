@@ -50,7 +50,6 @@ def main(files):
 
     keys = list(new_data.keys())
 
-    figsize = (4.3, 4.5)
     cmap = "tab20c"
     n = len(keys)
     colors = plt.get_cmap(cmap)(np.arange(n, dtype=int))
@@ -60,7 +59,10 @@ def main(files):
     markers = (marker_types * k)[:n]
 
     mem_keys = sort_memory_sizes(keys)
-    fig, (ax_mem, ax_time) = plt.subplots(2, 1, sharex=True, figsize=figsize)
+    # figsize = (4.3, 4.5)
+    # fig, (ax_mem, ax_time) = plt.subplots(2, 1, sharex=True, figsize=figsize)
+    figsize = (8, 2.7)
+    fig, (ax_mem, ax_time) = plt.subplots(1, 2, figsize=figsize)
     for i, mem_key in enumerate(mem_keys):
         values = new_data[mem_key]
         mem = values[mem_stats_key][:, 0]
@@ -73,12 +75,14 @@ def main(files):
 
     ax_mem.set_ylabel("Memory, bytes")
     ax_time.set_ylabel("Elapsed time, seconds")
+    ax_mem.set_xlabel("Size, $n$")
+    ax_time.set_xlabel("Size, $n$")
 
     ax_mem.yaxis.set_major_locator(tkr.MultipleLocator(5e9))
     ax_mem.yaxis.set_minor_locator(tkr.MultipleLocator(1e9))
 
-    ax_mem.legend(loc="best")
-    ax_time.legend(loc="best")
+    # ax_mem.legend(loc="center right")
+    ax_time.legend(loc="upper left")
     ax_mem.yaxis.grid(visible=True, which="both", linestyle=":")
     ax_time.yaxis.grid(visible=True, which="both", linestyle=":")
 

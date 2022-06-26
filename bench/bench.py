@@ -210,7 +210,7 @@ def dist(ctx: click.Context, dim: int,  a_size: int, b_size: int):
     cmd_ctx.run(fn)
 
 
-# XLA_FLAGS="--xla_try_split_tensor_size=10GB" python ./bench.py --warmup 10 --repeat 100 --logdir "./logs/kvp/fp64-split_10GB_se-500000-10" -f fp64 -r 10 -w 1 kvp -k se -a "(500000, 10)" -b "(500000, 10)" -v "(500000, 1)"
+# XLA_FLAGS="--xla_tensor_size_threshold=10GB" python ./bench.py --warmup 10 --repeat 100 --logdir "./logs/kvp/fp64-split_10GB_se-500000-10" -f fp64 -r 10 -w 1 kvp -k se -a "(500000, 10)" -b "(500000, 10)" -v "(500000, 1)"
 @main.command()
 @click.option("-k", "--kernel-name", type=kernel_choice, required=True)
 @click.option("-a", "--a-shape", type=Shape(), required=True)

@@ -33,7 +33,7 @@ __default_gambit_logs = "./default_gambit_logs"
 __datasets = click.Choice(["houseelectric", "song", "buzz", "3droad", "keggundirected"])
 
 
-# XLA_FLAGS="--xla_try_split_tensor_size=100MB" python bench_sgpr_test.py -s 0 -m 1000
+# XLA_FLAGS="--xla_tensor_size_threshold=100MB" python bench_sgpr_test.py -s 0 -m 1000
 
 
 @click.command()

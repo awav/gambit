@@ -1,30 +1,13 @@
-Draft of the Gambit project
+Gambit Project
 ===========================
 
-_Authors: Artem Artemev (art.art.v@gmail.com), Tilman Roeder (tilmroe@gmail.com), and continues..._
+_Authors: Artem Artemev, Tilman Roeder, and Mark van der Wilk_
 
-> _Up-to-date description is here (with latex rendering):
-> https://colab.research.google.com/drive/1TyrctD_Cv2p6f-wtoqgv5Oq60pfcKSmE?usp=sharing_
-
-## Motivation
-
-Scientific programming has multiple challenges that come from the plexus of various disciplines. The focal point of this document is Machine Learning (ML) - an intersection of mathematics and computer science. ML success solely relies on the performance and efficiency of a code that involves linear algebra and complicated math. Writing adequate code that is fast and scales well using standard computer programming languages, like C++ or Python (popular choices), is a difficult task. When efficiency is mandatory for mathematical algorithms, the code complexity ramps up. And in turn, demands from a developer to have sharply honed skills in distributed and parallel computing.
-
-Today, frameworks like TensorFlow, JAX and PyTorch provide math abstractions with automatic differentiation capabilities, and on top of that, they give their users GPU acceleration for free. More sophisticated algorithms claim more hardware resources, and when this requirement is met, those frameworks don't facilitate scaling algorithms with multiple GPUs. They don't evaluate operations lazily in a memory-efficient manner. However, lots of linear algebra operations and math expressions are distributable and can be evaluated in memory saving mode.
-
-## Mission
-
-Implement MLIR (XLA) compiler extensions for optimizing linear algebra and math expressions. Anyone who uses this extension: mathematician, physicist or machine learning scientist would write a math code in TensorFlow, PyTorch or JAX on a level that comfortable for them, and get as efficient code as possible by fully utilizing available resources, whether multiple GPUs or limited memory.
-
-## Optimization approaches
-
-TensorFlow, JAX and PyTorch build a static or a dynamic computational graph that consists of operations and tensors - operations produce tensors (data). Someone could describe this process as data flow through procedures in a graph. The resulting computational graph structure is known as a directed acyclic graph (DAG). Frameworks execute the graph using a stream executer (TensorFlow terminology), which in turn either runs operations on CPU or GPU depending on availability. Alternatively, we could optimise the computational graph via changing DAG traverse order, reshuffling operations (nodes) and by deciding on which device and what's more important - how to execute them on multiple devices (GPU).
-
-Showing real examples, we propose three approaches for optimising computational graphs which could be integrated into MLIR (XLA):
+XLA is a compiler for linear algebra. Frameworks - PyTorch, TensorFlow and JAX support it in some way. XLA is an obvious choice for optimization tweaks in user-defined expressions (computational graphs) implicitly without user interventions.
 
 ### Evaluation order
 
-Let consider a simple math expression that involves single matrix-matrix multiplication and matrix-vector multiplication. For a given N-by-M matrix $A$, M-by-D matrix $B$, and D-by-1 vector $v$, we have:
+Let consider a simple math expression that involves single matrix-matrix multiplication and matrix-vector multiplication. For a given N-by-M matrix $A$, M-by-D matrix $B$, and D-by-1 vector $v$, we have the following expression:
 
 $$
 c =  (A \times B) \times v
@@ -32,7 +15,7 @@ $$
 
 Resulting vector $c$ has dimensionality N-by-1. The result in the parenthesis equals to N-by-D matrix, and the cost of that operation is $\mathcal{O}(NMD)$. Following vector multiplication costs another $\mathcal{O}(ND)$ and gives N-by-1 $c$ vector.
 
-This order of execution is neither memory nor CPU/GPU clock efficient. A better choice would be to traverse the graph a bit differently:
+This order of execution is neither memory nor CPU/GPU clock efficient. A better choice would be to traverse the computational graph a bit differently:
 
 $$
 c =  A \times (B \times v)
@@ -43,7 +26,7 @@ $B \times v$ matrix-vector multiplication costs $\mathcal{O}(MD)$ with a tempora
 The conclusion is:
 
 - Perform vector multiplication first - it is always cheaper
-- By changing the order of matrix operations, we can speed up algorithms and save some memory.
+- By changing the order of matrix operations, we can speed up algorithms and save memory in intermediate steps of expression.
 
 ### Operation transformations
 
@@ -86,25 +69,15 @@ D = np.sum(A ** 2, axis=-1)[np.newaxis, :] + \
 
 ### Map-Reduce and lazy evaluations
 
-TensorFlow and PyTorch offer evaluations on GPU and CPU devices with fully materialized tensors. If a program cannot allocate memory for a tensor on a device, it will crash with OOM error. A user could prevent the OOM behaviour by splitting arrays into slices (blocks), treating these slices independently, and evaluating operations in a lazy and distributed manner, engaging all available devices. Also, if an operation cannot be applied to all slices at once, a user can decide to cache slices and run the operation sequentially on a subset. Of course, the latter approach might run slower, although the benefit is that the user would be feasible to run that code even under hard constraints.
+JAX, TensorFlow and PyTorch offer evaluations on GPU and CPU devices with fully materialized tensors. If user's program cannot allocate memory for a tensor, usually it crashes with out-of-memory error (OOM). User could prevent the OOM behavior by splitting arrays into slices (blocks or tiles), treating these slices independently, and evaluating operations in a lazy and distributed manner, engaging all available devices.
+If an operation cannot be applied to all slices at once, a user can decide to cache slices and run the operation sequentially on a subset. Of course, the latter approach might run slower. However, the benefit of that approach is that the code would be feasible to run even under hard resource constraints.
 
-Matrix multiplication is a perfect example for a map-reduce scheme. For a given matrix $A$, N-by-D size, and a matrix $B$, D-by-M size, matrix multiplication as mentioned earlier costs $\mathcal{O}(NDM)$ and because each element $C_{i,j}$ of the output matrix $C = A \times B$ is independent of other elements, this operation is highly parallelizable. GPU-accelerated libraries CUDA and MAGMA have super-efficient implementation for this op. The pitfall is in a GPU memory limitation. For encountered matrices with large N, D or M, temporary computations will not fit into a GPU memory.
+Matrix multiplication is a perfect example for a map-reduce scheme. For a given matrix $A$, N-by-D size, and a matrix $B$, D-by-M size, matrix multiplication as mentioned earlier costs $\mathcal{O}(NDM)$ and because each element $C_{i,j}$ of the output matrix $C = A \times B$ is independent of other elements, this operation is highly parallelizable. GPU-accelerated libraries CUDA and MAGMA have super-efficient implementation for this op. The pitfall is in a GPU memory limitation. For matrices with large N, D or M temporary computations will not fit into the GPU memory.
 
-...
 
-## Solutions
+## Notes on building TF/XLA
 
-The prerequisite for proficiency in performance techniques like multi-threading, caching, and distributed computing puts a strain on user experience and shifts scientists' focus from writing clean math code to an area outside their purview.
-
-There are extensions to PyTorch that support map-reduce (and caching) and make life much easier, like [TensorComprehensions][2] and [KeOps][1]. To my knowledge, KeOps is the most successful and powerful tool that leverages the conception of lazy tensors, symbolic graph representations and JIT compilation. In short, KeOps tracks down calculations with lazy tensors and builds symbolic representation. When a program calls for a materialized result, KeOps generates and compiles efficient map-reduce code for a given expression that can be cached and run on multiple GPUs. Although a disadvantage is that users still have to define lazy tensors manually, and a framework must support tensor redefinition through either inheritance or traits. E.g. PyTorch supports tensor overriding, and TensorFlow doesn't. This leaves lots of TensorFlow users and their code behind.
-
-[XLA][5] is a compiler for linear algebra and all listed frameworks - PyTorch, TensorFlow and JAX support it. This is an obvious choice for making tweaking of user-defined expressions (computational graphs). It can be done implicitly without user interventions.
-
-**TO BE CONTINUED...**
-
-## Notes on building TFL/ XLA
-
-Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#docker_linux_builds (use docker on linux, otherwise the build will take forever, since docker on MacOS is running in a VM; note that the build will take around 2-5 hours)
+Basically follow the steps at https://www.tensorflow.org/install/source?hl=en#docker_linux_builds (use Docker on linux, otherwise the build will take forever, since docker on MacOS is running in a VM; note that the build will take around 2-5 hours)
 
 1. Clone the gambit repository:
     ```bash
@@ -122,17 +95,17 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     ```
 4. Make sure to set up the bazel cache directory!
     - Set up a `.cache` folder inside of the cloned gambit: `mkdir .cache`
-    - After starting the docker container, sym-link it: `ln -s /mnt/.cache /root/.cache`
-    - Make sure to set the bazel cache directory to within the mounted files, so they are not lost when you restart your contaier (VERY IMPORTANT, unless you like waiting for 5h while bazel fries your CPU)
+    - After starting the docker container, symlink it: `ln -s /mnt/.cache /root/.cache`
+    - Make sure to set the bazel cache directory to within the mounted files, so they are not lost when you restart your container.
     - If you forgot this, this can be fixed after the first build by running: `cp /root/.cache /mnt/.cache`
-5. For the first build, you may need to configure it. Run `./configure` inside the `tensorflow` directory.
-6. Run the build (inside the `tensorflow` directory) (expect the first run to take between 2-5 hours):
+5. For the first build configure the project: run `./configure` inside the `tensorflow` directory.
+6. Run the build inside the `tensorflow` directory. Expect the first run to take between 2-5 hours:
     ```bash
     # building the pip package
     bazel build //tensorflow/tools/pip_package:build_pip_package
     # running (only our) XLA tests
     bazel test //tensorflow/compiler/xla/service:dot_order_optimizer_test
-    bazel test //tensorflow/compiler/xla/service:intermediate_tensor_splitter_test
+    bazel test //tensorflow/compiler/xla/service:tensor_splitter_test
     # build and install pip package
     bazel build //tensorflow/tools/pip_package:build_pip_package
     ./bazel-bin/tensorflow/tools/pip_package/build_pip_package /mnt
@@ -149,13 +122,13 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
 7. Extract images from XLA and other options:
     ```bash
     # All passes
-    TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/ --xla_try_split_tensor_size=1GB" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
+    TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/ --xla_tensor_size_threshold=1GB" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
     # Only our pass
-    TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/ --xla_enable_hlo_passes_only=split-intermediate-tensors,broadcast-simplifier,dot-order-optimizer,dce --xla_try_split_tensor_size=1GB" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
+    TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/ --xla_enable_hlo_passes_only=tensor-splitter,broadcast-simplifier,dot-order-optimizer,dce --xla_tensor_size_threshold=1GB" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
     # Disable our hlo pass
-    XLA_FLAGS="--xla_disable_hlo_passes=split-intermediate-tensors" python ...
+    XLA_FLAGS="--xla_disable_hlo_passes=tensor-splitter" python ...
     # Option for setting the split sizes threshold
-    TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/ --xla_try_split_tensor_size=2000000" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
+    TF_DUMP_GRAPH_PREFIX="./xla-dump/" XLA_FLAGS="--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/ --xla_tensor_size_threshold=2000000" TF_XLA_FLAGS="--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug" python xla_playground.py
     ```
 8. Run benchmarks:
     ```bash
@@ -164,14 +137,14 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     # Run with our pass
     python bench/main.py "bench_with_split.csv"
     # Run without our pass
-    XLA_FLAGS="--xla_disable_hlo_passes=split-intermediate-tensors" python bench/main.py "bench_no_split.csv"
+    XLA_FLAGS="--xla_disable_hlo_passes=tensor-splitter" python bench/main.py "bench_no_split.csv"
     ```
 9. Notes:
     - If you need the physical splitting in the graph (separate nodes as opposed to while loops) use this commit:
       <https://github.com/awav/tensorflow/commit/304ad922091bc672b0c0d7017260fb24d4267d23>
     - See why this wont be split ... :
     ```
-    XLA_FLAGS="--xla_try_split_tensor_size=1GB --xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/" python ./bench.py --warmup 1 --repeat 1 --logdir "./logs/kernel-vector-product/test" -f fp64 kernel-vector-product -k se -a "(100000, 10)" -b "(100000, 10)" -v "(100000, 1)"
+    XLA_FLAGS="--xla_tensor_size_threshold=1GB --xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/" python ./bench.py --warmup 1 --repeat 1 --logdir "./logs/kernel-vector-product/test" -f fp64 kernel-vector-product -k se -a "(100000, 10)" -b "(100000, 10)" -v "(100000, 1)"
     ```
 
 
@@ -192,7 +165,7 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     pip install -y numpy keras_preprocessing
     ```
 
-3. Local installation (CUDA or TPU)
+3. Local installation (CUDA)
     ```
     DEV=cuda
     TF_PIP_PATH=~/Storage/tf-pip
@@ -203,15 +176,6 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     pip install -U $TF_PIP_PATH/tensorflow-*.whl
     ```
 
-    ```
-    DEV=tpu
-    TF_PIP_PATH=~/.local/tf-pip
-    rm -rf $TF_PIP_PATH &&
-    bazel build //tensorflow/tools/pip_package:build_pip_package --config=$DEV &&
-    ./bazel-bin/tensorflow/tools/pip_package/build_pip_package $TF_PIP_PATH &&
-    pip3 uninstall tensorflow tensorflow-estimator &&
-    pip3 install -U $TF_PIP_PATH/tensorflow-*.whl
-    ```
 ## JAX local compiling
 
 1. GPU:
@@ -223,26 +187,6 @@ Basically Follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     pip install --force-reinstall $JAX_DIST/jaxlib-*.whl &&
     pip install -e .
     ```
-
-2. TPU
-
-TensorFlow master SHA: `609b3f0dde17ea883743b1bd0e10294956f6654a` on 3 Oct 2021
-
-```
-YYYYMMDD=20211003
-pip3 install --upgrade libtpu-nightly==0.1.dev${YYYYMMDD} -f https://storage.googleapis.com/jax-releases/libtpu_releases.html
-```
-
-```
-JAX_DIST=~/code/jax/dist
-```
-
-```
-rm -rf $JAX_DIST/jaxlib-*.whl &&
-python3 build/build.py --enable_tpu --bazel_options="--override_repository=org_tensorflow=$HOME/code/gambit/tensorflow" &&
-pip3 install --force-reinstall $JAX_DIST/jaxlib-*.whl &&
-pip3 install -e .
-```
 
 ## Building with JAX
 1. Download JAX repo: `git clone https://github.com/google/jax.git`
@@ -260,26 +204,3 @@ local_repository(
 4. Run the build: `python build/build.py`
 5. Follow the instructions on screen to install the built wheel for jaxlib
 6. Install jax: `pip install -e .` 
-
-## References
-
-* [KeOps framework][1]
-* [TensorComprehensions framework][2]
-* [KeOps design choices][3]
-* [FalconML library powered by KeOps][4]
-* [XLA][5]
-* [MLIR presentation][6]
-* [Cannon’s algorithm for distributed matrix multiplication][8]
-
-
-[1]: https://www.kernel-operations.io/keops/index.html "KeOps framework"
-[2]: https://facebookresearch.github.io/TensorComprehensions "TensorComprehensions"
-[3]: https://www.kernel-operations.io/keops/formulas/design_choices.html "KeOps design choices"
-[4]: https://twitter.com/luigicarratino/status/1313879062075539457?s=19 "FalconML library"
-[5]: https://www.tensorflow.org/xla "XLA"
-[6]: https://www.youtube.com/watch?v=qzljG6DKgic "MLIR presentation"
-[7]: http://www.netlib.org/lapack/lawnspdf/lawn129.pdf "Parallel Matrix Multiplication Algorithm on Distributed-Memory Concurrent Computers"
-[8]: https://en.wikipedia.org/wiki/Cannon%27s_algorithm "Cannon’s algorithm for distributed matrix multiplication"
-[9]: https://blog.tensorflow.org/2019/04/mlir-new-intermediate-representation.html "MLIR"
-
-
