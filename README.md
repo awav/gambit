@@ -13,7 +13,7 @@ $$
 c =  (A \times B) \times v
 $$
 
-Resulting vector $c$ has dimensionality N-by-1. The result in the parenthesis equals to N-by-D matrix, and the cost of that operation is $\mathcal{O}(NMD)$. Following vector multiplication costs another $\mathcal{O}(ND)$ and gives N-by-1 $c$ vector.
+Resulting vector $c$ has dimensionality N-by-1. The result in the parenthesis equals to N-by-D matrix, and the cost of that operation is $O(NMD)$. Following vector multiplication costs another $O(ND)$ and gives N-by-1 $c$ vector.
 
 This order of execution is neither memory nor CPU/GPU clock efficient. A better choice would be to traverse the computational graph a bit differently:
 
@@ -21,7 +21,7 @@ $$
 c =  A \times (B \times v)
 $$
 
-$B \times v$ matrix-vector multiplication costs $\mathcal{O}(MD)$ with a temporary $\mathcal{O}(M)$ memory footprint. Next in turn is again the vector-matrix multiplication with $\mathcal{O}(NM)$ cost.
+$B \times v$ matrix-vector multiplication costs $O(MD)$ with a temporary $O(M)$ memory footprint. Next in turn is again the vector-matrix multiplication with $O(NM)$ cost.
 
 The conclusion is:
 
@@ -73,7 +73,7 @@ D = np.sum(A ** 2, axis=-1)[np.newaxis, :] + \
 JAX, TensorFlow and PyTorch offer evaluations on GPU and CPU devices with fully materialized tensors. If user's program cannot allocate memory for a tensor, usually it crashes with out-of-memory error (OOM). User could prevent the OOM behavior by splitting arrays into slices (blocks or tiles), treating these slices independently, and evaluating operations in a lazy and distributed manner, engaging all available devices.
 If an operation cannot be applied to all slices at once, a user can decide to cache slices and run the operation sequentially on a subset. Of course, the latter approach might run slower. However, the benefit of that approach is that the code would be feasible to run even under hard resource constraints.
 
-Matrix multiplication is a perfect example for a map-reduce scheme. For a given matrix $A$, N-by-D size, and a matrix $B$, D-by-M size, matrix multiplication as mentioned earlier costs $\mathcal{O}(NDM)$ and because each element $C_{i,j}$ of the output matrix $C = A \times B$ is independent of other elements, this operation is highly parallelizable. GPU-accelerated libraries CUDA and MAGMA have super-efficient implementation for this op. The pitfall is in a GPU memory limitation. For matrices with large N, D or M temporary computations will not fit into the GPU memory.
+Matrix multiplication is a perfect example for a map-reduce scheme. For a given matrix $A$, N-by-D size, and a matrix $B$, D-by-M size, matrix multiplication as mentioned earlier costs $O(NDM)$ and because each element $C_{i,j}$ of the output matrix $C = A \times B$ is independent of other elements, this operation is highly parallelizable. GPU-accelerated libraries CUDA and MAGMA have super-efficient implementation for this op. The pitfall is in a GPU memory limitation. For matrices with large N, D or M temporary computations will not fit into the GPU memory.
 
 
 ## Notes on building TF/XLA
