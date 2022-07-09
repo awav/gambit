@@ -25,10 +25,11 @@ sys.path.append(cur_dir)
 from cases import backends as backends_case
 from cases import dists as dists_example
 from cases import outerprod as outerprod_example
+from cases import matrix_chain as matrix_chain_example
 from cases import kernels as kernels_example
 from cases import tril_solve as tril_solve_example
 from cases import models as models_example
-from clitypes import FloatType, LogdirPath
+from clitypes import FloatType, LogdirPath, Shape
 
 
 __default_gambit_logs = "./default_gambit_logs"
@@ -170,6 +171,46 @@ def outerprod(ctx: click.Context, a_shape: Tuple[int], b_shape: Union[Tuple[int]
     cmd_ctx.run(fn)
 
 
+chain_choice = click.Choice(["reduce_sum_chain", "transpose_chain", "pure_matrix_chain", "matrix_vector_chain"])
+
+@main.command()
+@click.option("-n", "--chain_type", type=chain_choice, default="reduce_sum_chain", help="The type of matrix chain")
+@click.option("-n", "--digit_num", type=int, default=1000, help="The number of digits of each size of matrix dimensions")
+@click.pass_context
+def matrix_chain(ctx: click.Context, chain_type: str, digit_num: int):
+    cmd_ctx = ctx.obj
+    if digit_num<10:
+        digit_num=10
+    A = tf.Variable(tf.random.uniform((4*digit_num, 2*digit_num)))
+    B = tf.Variable(tf.random.uniform((2*digit_num, 3*digit_num))) 
+    C = tf.Variable(tf.random.uniform((3*digit_num, 1*digit_num))) 
+    D = tf.Variable(tf.random.uniform((1*digit_num, ))) 
+    E = tf.Variable(tf.random.uniform((2*digit_num,5*digit_num//10)))
+    F = tf.Variable(tf.random.uniform((5*digit_num//10,1*digit_num)))
+    fn = lambda : matrix_chain_example.reduce_matrix_chain(A,B,C,D)
+    if chain_type == "transpose_chain":
+        A = tf.Variable(tf.random.uniform((4*digit_num, 2*digit_num)))
+        B = tf.Variable(tf.random.uniform((2*digit_num, 3*digit_num)))
+        C = tf.Variable(tf.random.uniform((3*digit_num, 2*digit_num)))
+        D = tf.Variable(tf.random.uniform((3*digit_num, 1*digit_num)))
+        fn = lambda : matrix_chain_example.transpose_chain(A,B,C,D,E,F)
+    elif chain_type == "matrix_vector_chain":
+        A = tf.Variable(tf.random.uniform((4*digit_num,2*digit_num)))
+        B = tf.Variable(tf.random.uniform((2*digit_num,)))
+        C = tf.Variable(tf.random.uniform((4*digit_num, 3*digit_num)))
+        D = tf.Variable(tf.random.uniform((1*digit_num, 3*digit_num)))
+        fn = lambda : matrix_chain_example.matrix_vector_chain(A,B,C,D)
+    elif chain_type == "pure_matrix_chain":
+        A = tf.Variable(tf.random.uniform((1*digit_num, 6*digit_num)))
+        B = tf.Variable(tf.random.uniform((6*digit_num, 3*digit_num)))
+        C = tf.Variable(tf.random.uniform((3*digit_num, 2*digit_num)))
+        D = tf.Variable(tf.random.uniform((2*digit_num, 4*digit_num)))
+        E = tf.Variable(tf.random.uniform((4*digit_num, 1*digit_num)))
+        fn = lambda : matrix_chain_example.pure_matrix_chain(A,B,C,D,E)
+    
+    cmd_ctx.run(fn)
+
+
 kernel_choice = click.Choice(["se", "matern32", "linear"])
 
 
@@ -210,7 +251,7 @@ def dist(ctx: click.Context, dim: int,  a_size: int, b_size: int):
     cmd_ctx.run(fn)
 
 
-# XLA_FLAGS="--xla_tensor_size_threshold=10GB" python ./bench.py --warmup 10 --repeat 100 --logdir "./logs/kvp/fp64-split_10GB_se-500000-10" -f fp64 -r 10 -w 1 kvp -k se -a "(500000, 10)" -b "(500000, 10)" -v "(500000, 1)"
+# XLA_FLAGS="--xla_try_split_tensor_size=10GB" python ./bench.py --warmup 10 --repeat 100 --logdir "./logs/kvp/fp64-split_10GB_se-500000-10" -f fp64 -r 10 -w 1 kvp -k se -a "(500000, 10)" -b "(500000, 10)" -v "(500000, 1)"
 @main.command()
 @click.option("-k", "--kernel-name", type=kernel_choice, required=True)
 @click.option("-a", "--a-shape", type=Shape(), required=True)

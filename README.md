@@ -23,10 +23,13 @@ $$
 
 $B \times v$ matrix-vector multiplication costs $O(MD)$ with a temporary $O(M)$ memory footprint. Next in turn is again the vector-matrix multiplication with $O(NM)$ cost.
 
+For more general cases, this problem is actuall a matrix-chain-optimization problem, which aims at finding the most efficient way to multiply a given sequence of matrices. In the original computational grpah, a matrix chain would be executed exactly the same order with what users defined. So it needs users to mannually to think of the best computation order which may be time-comsuming and even cannot easilly be solved. In addition, due to the properties in some linear algebra operations like transpose, a matrix chain may not simply consists of pure matrces or vectors. For example, a matrix chain: $$(ABC(D(JH)^T)^T)^T=DH^TJ^TC^TB^TA^T$$ The optimal evaluation order of this chain can be $(DH^T)(A(B(CJ)))^T$. And reduce-sum on a matrix can also be regarded as a matrix multiplication between the maxtrix and a all-ones vector. All of these can be considered as a general matrix cahin and thus can lead to longer chains which can be opotimized by ohter extension.
+
 The conclusion is:
 
 - Perform vector multiplication first - it is always cheaper
 - By changing the order of matrix operations, we can speed up algorithms and save memory in intermediate steps of expression.
+- A general matrix chain(including transpose and reduce-sum) can lead to longer chains and we can futhur speed up such algorithms and save more memory.
 
 ### Operation transformations
 
@@ -138,7 +141,7 @@ Basically follow the steps at https://www.tensorflow.org/install/source?hl=en#do
     # Run with our pass
     python bench/main.py "bench_with_split.csv"
     # Run without our pass
-    XLA_FLAGS="--xla_disable_hlo_passes=tensor-splitter" python bench/main.py "bench_no_split.csv"
+    XLA_FLAGS="--xla_disable_hlo_passes=algebraic-rewriter,broadcast-simplifier,dot-order-optimizer,rce-optimizer,tensor-splitter,mco" python bench/main.py "bench_no_split.csv"
     ```
 9. Notes:
     - If you need the physical splitting in the graph (separate nodes as opposed to while loops) use this commit:
