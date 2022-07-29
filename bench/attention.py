@@ -4,6 +4,9 @@ import numpy as np
 Tensor = tf.Tensor
 
 
+# TF_CPP_MIN_LOG_LEVEL=0 CUDA_VISIBLE_DEVICES="3" DUMPDIR="xla-attention" XLA_FLAGS="--xla_dump_hlo_as_dot --xla_dump_to=${DUMPDIR} --xla_try_split_tensor_size=3MB --xla_enable_hlo_passes_only=split-intermediate-tensors,algebraic-rewriter,dce,broadcast-simplifier,cholesky_expander,triangular_solve_expander,bitcast_dtypes_expander,CallInliner,gpu_scatter_expander,rce-optimizer" python ./attention.py 2>&1 | tee output-attention.log
+
+
 def self_attention(queries: Tensor, keys: Tensor, values: Tensor) -> Tensor:
     """
     Args:
@@ -44,8 +47,8 @@ if __name__ == "__main__":
         # try this one if it does not work:
         # self_attention_jit = tf.function(self_attention, experimental_compile=True)
         d = 10
-        m = 88
-        n = 999
+        m = 1000
+        n = 1000
         queries = tf.random.uniform([m, d])
         keys = tf.random.uniform([n, d])
         values = tf.random.uniform([n, d])
