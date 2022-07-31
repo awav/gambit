@@ -138,21 +138,28 @@ dmypy.json
 # Cython debug symbols
 cython_debug/
 
-# XLA output files
-xla-dump
-bench/xla-dump
-*.o
-*.ll
-
 # Numpy arrays
 *.npy
 
-bench/uci
-bench/logs*
-jax
-
-# 
+# Custom ignores
 *.dot
 *.svg
 *.ps
 *.h5
+*.zip
+*.thunk_schedule
+*.ll
+*.ptx
+*.ir-*
+*.pdf
+*.lmhlo
+*.o
+*.ll
+
+bench/xla-*
+bench/uci
+bench/logs*
+jax
+
+.DS_Store
+
