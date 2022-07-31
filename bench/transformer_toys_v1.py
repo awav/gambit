@@ -207,17 +207,17 @@ class MultiHeadAttention(tf.keras.layers.Layer):
 # Create a `MultiHeadAttention` layer to try out. At each location in the sequence, `y`, the `MultiHeadAttention` runs all 8 attention heads across all other locations in the sequence, returning a new vector of the same length at each location.
 
 # + id="Hu94p-_-2_BX"
-temp_mha = MultiHeadAttention(d_model=512, num_heads=8)
-y = tf.random.uniform((1, 60, 512))  # (batch_size, encoder_sequence, d_model)
+# temp_mha = MultiHeadAttention(d_model=512, num_heads=8)
+# y = tf.random.uniform((1, 60, 512))  # (batch_size, encoder_sequence, d_model)
 
-@tf.function(jit_compile=True)
-def jit_temp_mha(v, k, q):
-  out, attn = temp_mha(y, k=y, q=y, mask=None)
-  return out, attn
+# @tf.function(jit_compile=True)
+# def jit_temp_mha(v, k, q):
+#   out, attn = temp_mha(y, k=y, q=y, mask=None)
+#   return out, attn
 
-out, attn = temp_mha(y, k=y, q=y, mask=None)
-out, attn = jit_temp_mha(y, y, y)
-out.shape, attn.shape
+# out, attn = temp_mha(y, k=y, q=y, mask=None)
+# out, attn = jit_temp_mha(y, y, y)
+# out.shape, attn.shape
 
 # + [markdown] id="RdDqGayx67vv"
 # ## Point wise feed forward network
