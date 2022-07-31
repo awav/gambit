@@ -1,29 +1,13 @@
-# ---
-# jupyter:
-#   jupytext:
-#     text_representation:
-#       extension: .py
-#       format_name: light
-#       format_version: '1.5'
-#       jupytext_version: 1.14.0
-#   kernelspec:
-#     display_name: Python 3
-#     name: python3
-# ---
-
 import logging
-import time
-
 import numpy as np
-import matplotlib.pyplot as plt
-
-import tensorflow_datasets as tfds
 import tensorflow as tf
 
 logging.getLogger('tensorflow').setLevel(logging.ERROR)  # suppress warnings
+np.set_printoptions(suppress=True)
+
 
 # MAX_TOKENS = 128
-MAX_TOKENS = 20000
+MAX_TOKENS = 100000
 
 
 def get_angles(pos, i, d_model):
@@ -41,9 +25,6 @@ def positional_encoding(position, d_model):
   pos_encoding = angle_rads[np.newaxis, ...]
   return tf.cast(pos_encoding, dtype=tf.float32)
 
-
-# ## Download the Dataset
-
 # ## Masking
 
 def create_padding_mask(seq):
@@ -54,15 +35,9 @@ def create_padding_mask(seq):
   return seq[:, tf.newaxis, tf.newaxis, :]  # (batch_size, 1, 1, seq_len)
 
 
-x = tf.constant([[7, 6, 0, 0, 1], [1, 2, 3, 0, 0], [0, 0, 0, 4, 5]])
-create_padding_mask(x)
-
 def create_look_ahead_mask(size):
   mask = 1 - tf.linalg.band_part(tf.ones((size, size)), -1, 0)
   return mask  # (seq_len, seq_len)
-
-x = tf.random.uniform((1, 3))
-temp = create_look_ahead_mask(x.shape[1])
 
 
 def scaled_dot_product_attention(q, k, v, mask):
@@ -104,14 +79,6 @@ def scaled_dot_product_attention(q, k, v, mask):
 # As the softmax normalization is done along the dimension for keys, the attention values decide the amount of importance given to the keys for each query.
 #
 # The output represents the multiplication of the attention weights and the V (value) vector. This ensures that the tokens you want to focus on are kept as-is and the irrelevant tokens are flushed out.
-
-def print_out(q, k, v):
-  temp_out = scaled_dot_product_attention(
-      q, k, v, None)
-  print('Output is:')
-  print(temp_out.numpy())
-
-np.set_printoptions(suppress=True)
 
 
 # + [markdown] id="kmzGPEy64qmA"
@@ -192,11 +159,6 @@ def point_wise_feed_forward_network(d_model, dff):
       tf.keras.layers.Dense(dff, activation='relu'),  # (batch_size, seq_len, dff)
       tf.keras.layers.Dense(d_model)  # (batch_size, seq_len, d_model)
   ])
-
-
-# + id="mytb1lPyOHLB"
-sample_ffn = point_wise_feed_forward_network(512, 2048)
-sample_ffn(tf.random.uniform((64, 50, 512))).shape
 
 
 # + [markdown] id="MfYJG-Kvgwy2"
@@ -469,31 +431,3 @@ class Transformer(tf.keras.Model):
     look_ahead_mask = tf.maximum(dec_target_padding_mask, look_ahead_mask)
 
     return padding_mask, look_ahead_mask
-
-
-# + id="tJ4fbQcIkHW1"
-sample_transformer = Transformer(
-    num_layers=2, d_model=512, num_heads=8, dff=2048,
-    input_vocab_size=8500, target_vocab_size=8000)
-
-batch_size = 64
-# n_input_seq = 38
-# n_target_seq = 36
-n_input_seq = 1000
-n_target_seq = 1000
-temp_input = tf.random.uniform((batch_size, n_input_seq), dtype=tf.int64, minval=0, maxval=200)
-temp_target = tf.random.uniform((batch_size, n_target_seq), dtype=tf.int64, minval=0, maxval=200)
-
-
-f1n_out = sample_transformer([temp_input, temp_target], training=False)
-
-@tf.function(jit_compile=True)
-def run_transformer(inputs, targets):
-  return sample_transformer([inputs, targets], training=False)
-
-
-result = run_transformer(temp_input, temp_target)
-result.numpy()
-
-
-print(">>> finished <<<")

@@ -484,7 +484,6 @@ n_target_seq = 1000
 temp_input = tf.random.uniform((batch_size, n_input_seq), dtype=tf.int64, minval=0, maxval=200)
 temp_target = tf.random.uniform((batch_size, n_target_seq), dtype=tf.int64, minval=0, maxval=200)
 
-
 f1n_out = sample_transformer([temp_input, temp_target], training=False)
 
 @tf.function(jit_compile=True)
@@ -492,8 +491,12 @@ def run_transformer(inputs, targets):
   return sample_transformer([inputs, targets], training=False)
 
 
-result = run_transformer(temp_input, temp_target)
-result.numpy()
+xla_result = run_transformer(temp_input, temp_target)
+xla_result.numpy()
 
+tf_result = sample_transformer([temp_input, temp_target], training=False)
+tf_result = tf_result.numpy()
+
+np.testing.assert_almost_equal(xla_result, tf_result)
 
 print(">>> finished <<<")

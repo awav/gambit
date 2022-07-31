@@ -10,7 +10,7 @@ import gpflow
 cur_dir = str(Path(__file__).expanduser().absolute().parent)
 sys.path.append(cur_dir)
 
-from transformer import MultiHeadAttention
+from transformer import Transformer
 from clitypes import LogdirPath
 from bench_utils import BenchRunner, store_dict_as_h5
 from bench_sgpr_utils import (
@@ -18,7 +18,7 @@ from bench_sgpr_utils import (
     CompileType
 )
 
-__default_gambit_logs = "./logs_attention_default"
+__default_gambit_logs = "./logs_transformer_default"
 __gpu_devices = tf.config.get_visible_devices("GPU")
 __gpu_dev = __gpu_devices[0] if __gpu_devices else None
 
@@ -29,10 +29,10 @@ if __gpu_dev is not None:
     tf.config.experimental.set_memory_growth(__gpu_dev, True)
 
 # New version after renaming
-# TF_CPP_MIN_LOG_LEVEL=0 CUDA_VISIBLE_DEVICES="3" DUMPDIR="xla-exp-attention" XLA_FLAGS="--xla_dump_hlo_as_dot --xla_dump_to=${DUMPDIR} --xla_tensor_size_threshold=2GB --xla_tensor_split_size=1GB --xla_enable_hlo_passes_only=tensor-splitter,algebraic-rewriter,dce,broadcast-simplifier,cholesky_expander,triangular_solve_expander,bitcast_dtypes_expander,CallInliner,gpu_scatter_expander,rce-optimizer" python ./exp_attention.py --sequence-len 10000 2>&1 | tee output-exp-attention.log
+# TF_CPP_MIN_LOG_LEVEL=0 CUDA_VISIBLE_DEVICES="3" DUMPDIR="xla-exp-transformer" XLA_FLAGS="--xla_dump_hlo_as_dot --xla_dump_to=${DUMPDIR} --xla_tensor_size_threshold=2GB --xla_tensor_split_size=1GB --xla_enable_hlo_passes_only=tensor-splitter,algebraic-rewriter,dce,broadcast-simplifier,cholesky_expander,triangular_solve_expander,bitcast_dtypes_expander,CallInliner,gpu_scatter_expander,rce-optimizer" python ./exp_transformer.py --sequence-len 10000 2>&1 | tee output-exp-transformer.log
 
 # New version after renaming
-# TF_CPP_MIN_LOG_LEVEL=0 CUDA_VISIBLE_DEVICES="3" DUMPDIR="xla-exp-attention" XLA_FLAGS="--xla_dump_hlo_as_dot --xla_dump_to=${DUMPDIR} --xla_tensor_size_threshold=20GB --xla_tensor_split_size=10GB" python ./exp_attention.py --sequence-len 10000 2>&1 | tee output-exp-attention.log
+# TF_CPP_MIN_LOG_LEVEL=0 CUDA_VISIBLE_DEVICES="3" DUMPDIR="xla-exp-transformer" XLA_FLAGS="--xla_dump_hlo_as_dot --xla_dump_to=${DUMPDIR} --xla_tensor_size_threshold=20GB --xla_tensor_split_size=10GB" python ./exp_transformer.py --sequence-len 10000 2>&1 | tee output-exp-transformer.log
 
 
 @click.command()
@@ -78,10 +78,9 @@ def main(
         return tf.convert_to_tensor(x, dtype=dtype)
 
     batch_size = 64
-    seq_len = sequence_len
     d_model = 512
     num_heads = 8
-    input_shape = (batch_size, seq_len, d_model)
+    input_shape = (batch_size, sequence_len)
 
     # Max size is prod([batch_size, num_heads, seq_len, seq_len, d_model]) * precision
 
@@ -92,23 +91,31 @@ def main(
     # k_tf = ctt(k)
     # v_tf = ctt(v)
 
-    x = rng.randn(*input_shape)
+    x = rng.uniform(0, 200, size=input_shape)
+    y = rng.uniform(0, 200, size=input_shape)
     x_tf = ctt(x)
+    y_tf = ctt(y)
 
-    mha = MultiHeadAttention(d_model=d_model, num_heads=num_heads)
+    transformer = Transformer(
+        num_layers=2, d_model=d_model, num_heads=num_heads, dff=2048,
+        input_vocab_size=8500, target_vocab_size=8000)
 
-    def eval_test(v, k, q):
-        out = mha(v, k=k, q=q, mask=None)
+    def eval_test(inputs, targets):
+        out =  transformer([inputs, targets], training=False)
         return out
 
     eval_test_compiled = compile_function(eval_test, compile_flag)
 
     bench_runner = BenchRunner(repeat=repeat, warmup=warmup, logdir=logdir)
-    results = bench_runner.bench(eval_test_compiled, [x_tf, x_tf, x_tf])
+    results = bench_runner.bench(eval_test_compiled, [x_tf, y_tf])
     bench_table = {**info, **results}
 
     filepath = Path(logdir, "bench.h5")
     store_dict_as_h5(bench_table, filepath)
+
+    if "elapsed_stats" not in results or "mem_stats" not in results:
+        click.echo("⚠️ No stats in the benchmark output ⚠️ ")
+        raise click.exceptions.Exit(0)
 
     (elap_mu, elap_std) = results["elapsed_stats"]
     (mem_mu, mem_std) = results["mem_stats"]

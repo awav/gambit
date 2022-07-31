@@ -16,6 +16,94 @@
                 "TF_XLA_FLAGS": "--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug",
             },
             "justMyCode": false,
+        },
+        {
+            "name": "Exp: attention",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/bench/exp_attention.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}:${workspaceFolder}/bench/",
+                "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
+                "CUDA_VISIBLE_DEVICES": "0",
+                // "TF_DUMP_GRAPH_PREFIX": "./xla-dump/",
+                // "XLA_FLAGS": "--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/",
+                // "TF_XLA_FLAGS": "--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug",
+            },
+            "justMyCode": false,
+            "args": [
+                "--sequence-len",
+                "${input:sequence-len}",
+                "--compile",
+                "${input:compile}"
+            ],
+        },
+        {
+            "name": "Exp: transformer",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/bench/exp_transformer.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}:${workspaceFolder}/bench/",
+                "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
+                "CUDA_VISIBLE_DEVICES": "0",
+                // "TF_DUMP_GRAPH_PREFIX": "./xla-dump/",
+                // "XLA_FLAGS": "--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/",
+                // "TF_XLA_FLAGS": "--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug",
+            },
+            "justMyCode": false,
+            "args": [
+                "--sequence-len",
+                "${input:sequence-len}",
+                "--compile",
+                "${input:compile}"
+            ],
+        },
+        {
+            "name": "Plot: transformer",
+            "type": "python",
+            "request": "launch",
+            "program": "${workspaceFolder}/bench/exp_transformer_plot.py",
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}:${workspaceFolder}/bench/",
+                "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
+                "CUDA_VISIBLE_DEVICES": "0",
+                // "TF_DUMP_GRAPH_PREFIX": "./xla-dump/",
+                // "XLA_FLAGS": "--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/",
+                // "TF_XLA_FLAGS": "--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug",
+            },
+            "justMyCode": false,
+            "args": [
+                "${input:paths}",
+            ],
+        },
+    ],
+    "inputs": [
+        {
+            "type": "promptString",
+            "id": "paths",
+            "description": "File path (s)",
+            "default": "/home/artem/code/gambit/bench/logs/transformer-mem/*/bench.h5",
+        },
+        {
+            "type": "promptString",
+            "id": "sequence-len",
+            "description": "Sequence length",
+            "default": "1000",
+        },
+        {
+            "type": "pickString",
+            "id": "compile",
+            "description": "Compilation options",
+            "default": "xla",
+            "options": [
+                "xla",
+                "tf",
+                "none"
+            ]
         }
     ]
 }
