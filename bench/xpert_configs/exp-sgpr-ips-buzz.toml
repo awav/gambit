@@ -1,0 +1,23 @@
+cmd = 'python ./exp_sgpr_ips.py -l "{uid}"'
+
+[[exp]]
+cmd = 'XLA_FLAGS="--xla_try_split_tensor_size={limit}" {cmd}  -c {compile} -s {seed} -d {dataset} -m {numips} -mi {maxiters} -k {kernel} --{ard}'
+uid = './{rootdir}/{name}/{dataset}/{limit}/sgpr_tips{numips}_i{maxiters}_{kernel}_{ard}/{seed}'
+
+name = "ips"
+limit = "1GB"
+compile = "xla"
+rootdir = "logs_sgpr"
+seed = [111, 222, 333]
+dataset = ["buzz"]
+kernel = ["sqexp", "matern32"]
+ard = ["ard", "no-ard"]
+# numips = [1000, 2000, 3000, 4000]
+numips = 4000
+maxiters = 1000
+
+
+[flags]
+restart = false
+num_proc = 2
+gpu_indices = ["2", "3"]
