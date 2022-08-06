@@ -1,7 +1,6 @@
 from operator import itemgetter
 import click
 import numpy as np
-import tensorflow as tf
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tkr
 from bench_utils import select_from_report_data, expand_paths_with_wildcards
@@ -37,17 +36,30 @@ def main(files):
         new_data[mem_key][mem_stats_key] = mems_sorted
         new_data[mem_key][elapsed_stats_key] = elapses_sorted
         new_data[mem_key][sequence_len] = sizes_sorted
-    
-    none_key = "none"
-    other_key = "tl10GB_ts1GB"
-    new_data = {"XLA": new_data[none_key], "eXLA": new_data["other_key"]}
 
+    none_key = "none"
+    xla_none_key = "xla-none"
+    other_key = "tl10GB_ts1GB"
+    new_data = {
+        "XLA": new_data[xla_none_key],
+        "eXLA": new_data[other_key],
+        "TF": new_data[none_key],
+    }
+
+    tf_key = "TF"
     xla_key = "XLA"
     exla_key = "eXLA"
 
     linestyles = {
-        xla_key: "--",
-        exla_key: "-",
+        tf_key: ":",
+        xla_key: "-",
+        exla_key: (0, (5, 5)),
+    }
+
+    colors = {
+        tf_key: "tab:green",
+        xla_key: "tab:orange",
+        exla_key: "tab:blue",
     }
 
     plt.rcParams.update(
@@ -60,7 +72,6 @@ def main(files):
         }
     )
 
-    cmap = "tab20c"
     # figsize = (4.3, 4.5)
     # fig, (ax_mem, ax_time) = plt.subplots(2, 1, sharex=True, figsize=figsize)
     figsize = (8, 2.7)
@@ -69,19 +80,24 @@ def main(files):
     def plot_values(ax1, ax2, data, key):
         values = data[key]
         mem = values[mem_stats_key][:, 0]
-        time_mean, time_std = values[elapsed_stats_key]
-        sizes = values[sequence_len]
+        time_values = values[elapsed_stats_key]
+        time_mean = time_values[:, 0]
+        time_std = time_values[:, 1]
+        sequences = values[sequence_len]
         linestyle = linestyles[key]
-        ax1.plot(sizes, mem, linestyle=linestyle, label=key)
-        ax2.plot(sizes, time_mean, linestyle=linestyle, label=key)
-    
+        color = colors[key]
+        ax1.plot(sequences, mem, color=color, linestyle=linestyle, label=key)
+        ax2.plot(sequences, time_mean, color=color, linestyle=linestyle, label=key)
+        return sequences
+
     plot_values(ax_mem, ax_time, new_data, "XLA")
-    plot_values(ax_mem, ax_time, new_data, "eXLA")
+    plot_values(ax_mem, ax_time, new_data, "TF")
+    sequences = plot_values(ax_mem, ax_time, new_data, "eXLA")
 
     ax_mem.set_ylabel("Memory, bytes")
     ax_time.set_ylabel("Elapsed time, seconds")
-    ax_mem.set_xlabel("Sequence length, $n$")
-    ax_time.set_xlabel("Sequence length, $n$")
+    ax_mem.set_xlabel("Sequence length")
+    ax_time.set_xlabel("Sequence length")
 
     ax_mem.yaxis.set_major_locator(tkr.MultipleLocator(5e9))
     ax_mem.yaxis.set_minor_locator(tkr.MultipleLocator(1e9))
@@ -91,15 +107,19 @@ def main(files):
     ax_mem.yaxis.grid(visible=True, which="both", linestyle=":")
     ax_time.yaxis.grid(visible=True, which="both", linestyle=":")
 
-    ax_mem.xaxis.set_major_locator(tkr.MultipleLocator(1e5))
-    ax_mem.xaxis.set_minor_locator(tkr.MultipleLocator(5e4))
-    ax_time.xaxis.set_major_locator(tkr.MultipleLocator(1e5))
-    ax_time.xaxis.set_minor_locator(tkr.MultipleLocator(5e4))
+    ax_mem.set_xticks(sequences, labels=sequences, rotation=90)
+    ax_time.set_xticks(sequences, labels=sequences, rotation=90)
 
     ax_mem.spines["right"].set_visible(False)
     ax_mem.spines["top"].set_visible(False)
     ax_time.spines["right"].set_visible(False)
     ax_time.spines["top"].set_visible(False)
+
+    stop_color = "black"
+    ax_time.axvline(2000, alpha=0.5, color=stop_color)
+    ax_mem.axvline(2000, alpha=0.5, color=stop_color)
+
+    fig.suptitle("Transformer model, https://www.tensorflow.org/text/tutorials/transformer")
 
     plt.tight_layout()
     plt.show()

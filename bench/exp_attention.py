@@ -29,7 +29,7 @@ if __gpu_dev is not None:
     tf.config.experimental.set_memory_growth(__gpu_dev, True)
 
 # New version after renaming
-# TF_CPP_MIN_LOG_LEVEL=0 CUDA_VISIBLE_DEVICES="3" DUMPDIR="xla-exp-attention" XLA_FLAGS="--xla_dump_hlo_as_dot --xla_dump_to=${DUMPDIR} --xla_tensor_size_threshold=2GB --xla_tensor_split_size=1GB --xla_enable_hlo_passes_only=tensor-splitter,algebraic-rewriter,dce,broadcast-simplifier,cholesky_expander,triangular_solve_expander,bitcast_dtypes_expander,CallInliner,gpu_scatter_expander,rce-optimizer" python ./exp_attention.py --sequence-len 10000 2>&1 | tee output-exp-attention.log
+# TF_CPP_MIN_LOG_LEVEL=0 CUDA_VISIBLE_DEVICES="3" DUMPDIR="xla-exp-attention" XLA_FLAGS="--xla_dump_hlo_as_dot --xla_dump_to=${DUMPDIR} --xla_tensor_size_threshold=10GB --xla_tensor_split_size=1GB --xla_enable_hlo_passes_only=tensor-splitter,algebraic-rewriter,dce,broadcast-simplifier,cholesky_expander,triangular_solve_expander,bitcast_dtypes_expander,CallInliner,gpu_scatter_expander,rce-optimizer" python ./exp_attention.py --sequence-len 10000 2>&1 | tee output-exp-attention.log
 
 # New version after renaming
 # TF_CPP_MIN_LOG_LEVEL=0 CUDA_VISIBLE_DEVICES="3" DUMPDIR="xla-exp-attention" XLA_FLAGS="--xla_dump_hlo_as_dot --xla_dump_to=${DUMPDIR} --xla_tensor_size_threshold=20GB --xla_tensor_split_size=10GB" python ./exp_attention.py --sequence-len 10000 2>&1 | tee output-exp-attention.log
@@ -82,15 +82,6 @@ def main(
     d_model = 512
     num_heads = 8
     input_shape = (batch_size, seq_len, d_model)
-
-    # Max size is prod([batch_size, num_heads, seq_len, seq_len, d_model]) * precision
-
-    # q = rng.randn(*input_shape)
-    # k = rng.randn(*input_shape)
-    # v = rng.randn(*input_shape)
-    # q_tf = ctt(q)
-    # k_tf = ctt(k)
-    # v_tf = ctt(v)
 
     x = rng.randn(*input_shape)
     x_tf = ctt(x)

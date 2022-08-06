@@ -77,7 +77,7 @@
             },
             "justMyCode": false,
             "args": [
-                "${input:paths}",
+                "${workspaceFolder}/${input:paths}",
             ],
         },
     ],
@@ -86,7 +86,7 @@
             "type": "promptString",
             "id": "paths",
             "description": "File path (s)",
-            "default": "/home/artem/code/gambit/bench/logs/transformer-mem/*/bench.h5",
+            "default": "/bench/logs/transformer-mem/*/bench.h5",
         },
         {
             "type": "promptString",
