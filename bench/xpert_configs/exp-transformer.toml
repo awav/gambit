@@ -1,15 +1,35 @@
 cmd = 'python ./exp_transformer.py -l "{uid}" -c {compile} -s 777 -sl {sequence_len} -r {repeat}'
 
+# [[exp]]
+# cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={tensor_limit} --xla_tensor_split_size={tensor_size}" {cmd} -m "tl{tensor_limit}_ts{tensor_size}"'
+# uid = './{rootdir}/ts{tensor_limit}_ts{tensor_size}_sl{sequence_len}/'
+
+# tensor_limit = "10GB"
+# tensor_size = "1GB"
+# rootdir = "logs/transformer-mem"
+# compile = "xla"
+# repeat = 5
+# sequence_len = [250, 500, 750, 1000, 2000, 3000, 4000, 5000, 6000, 7000]
+
 [[exp]]
-cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={tensor_limit} --xla_tensor_split_size={tensor_size}" {cmd} -m "tl{tensor_limit}_ts{tensor_size}"'
-uid = './{rootdir}/ts{tensor_limit}_ts{tensor_size}_sl{sequence_len}/'
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={tensor_limit} --xla_tensor_split_size={tensor_size}" {cmd} -m "tl{tensor_limit}_ts{tensor_size}_v2"'
+uid = './{rootdir}/ts{tensor_limit}_ts{tensor_size}_sl{sequence_len}_v2/'
 
 tensor_limit = "10GB"
 tensor_size = "1GB"
 rootdir = "logs/transformer-mem"
 compile = "xla"
 repeat = 5
-sequence_len = [250, 500, 750, 1000, 2000, 3000, 5000, 6000, 7000]
+sequence_len = [250, 500, 750, 1000, 2000, 3000, 4000, 5000, 6000, 7000]
+
+
+[[exp]]
+cmd = 'XLA_FLAGS="--xla_disable_hlo_passes=tensor-splitter,rce-optimizer,broadcast-simplifier,dot-order-optimizer,algebraic-rewriter" {cmd} -m "xla-none"'
+uid = './{rootdir}/xla-sl{sequence_len}/'
+rootdir = "logs/transformer-mem"
+compile = "xla"
+repeat = 5
+sequence_len = [250, 500, 750, 1000, 2000, 3000, 4000, 5000, 6000, 7000]
 
 [[exp]]
 cmd = '{cmd}'
@@ -17,10 +37,10 @@ uid = './{rootdir}/sl{sequence_len}/'
 rootdir = "logs/transformer-mem"
 compile = "tf"
 repeat = 5
-sequence_len = [250, 500, 750, 1000, 2000, 3000, 5000, 6000, 7000]
+sequence_len = [250, 500, 750, 1000, 2000, 3000, 4000, 5000, 6000, 7000]
 
 
 [flags]
 restart = false
-num_proc = 4
-gpu_indices = ["0", "1", "2", "3"]
+num_proc = 3
+gpu_indices = ["1", "2", "3"]

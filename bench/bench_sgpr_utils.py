@@ -170,7 +170,7 @@ def create_metrics_func(model, data, compile_flag: CompileType, prefix: Optional
         loss = model.training_loss()
         predictions, variance = model.predict_f(x)
         err = y - predictions
-        logden = model.likelihood.predict_log_density(predictions, variance, y)
+        logden = model.likelihood.predict_log_density(x, predictions, variance, y)
         err_sq = tf.square(err)
         rmse = tf.sqrt(tf.reduce_mean(err_sq))
         nlpd = -tf.reduce_mean(logden)

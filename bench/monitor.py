@@ -4,6 +4,7 @@ import tensorflow as tf
 import gpflow
 from tensorboardX import SummaryWriter
 import numpy as np
+from codetiming import Timer
 
 
 class Monitor:
@@ -21,6 +22,8 @@ class Monitor:
         self._callbacks: Dict[str, Tuple[Callable, Dict]] = {}
         self._callback_holdout_interval: Dict[str, int] = {}
         self._global_holdout_interval: int = holdout_interval
+        self._global_timer = Timer("global_timer", logger=None)
+        self._inner_timer = Timer("inner_timer", logger=None)
 
     @property
     def writer(self) -> SummaryWriter:
@@ -29,6 +32,14 @@ class Monitor:
     @property
     def callbacks(self) -> Dict[str, Tuple[Callable, Dict]]:
         return self._callbacks
+    
+    @property
+    def global_timer(self) -> Timer:
+        return self._global_timer
+
+    @property
+    def inner_timer(self) -> Timer:
+        return self._inner_timer
 
     def add_callback(self, name: str, callback: Callable, holdout_interval: int = None):
         self._callbacks[name] = (callback, {})
@@ -104,23 +115,24 @@ class Monitor:
                     logs[key] = [numpy_value]
 
     def __call__(self, step: int, *args, **kwargs):
-        cur_step = self._iter
-        global_interval = self._global_holdout_interval
+        with self.inner_timer:
+            cur_step = self._iter
+            global_interval = self._global_holdout_interval
 
-        for name, value in self._callbacks.items():
-            cb_interval = None
-            if name in self._callback_holdout_interval:
-                cb_interval = self._callback_holdout_interval[name]
-            if cb_interval is not None:
-                if cur_step % cb_interval != 0:
+            for name, value in self._callbacks.items():
+                cb_interval = None
+                if name in self._callback_holdout_interval:
+                    cb_interval = self._callback_holdout_interval[name]
+                if cb_interval is not None:
+                    if cur_step % cb_interval != 0:
+                        continue
+                elif cur_step % global_interval != 0:
                     continue
-            elif cur_step % global_interval != 0:
-                continue
 
-            cb, logs = value
-            self.handle_callback(name, cb, logs)
+                cb, logs = value
+                self.handle_callback(name, cb, logs)
 
-        self._incr_iteration()
+            self._incr_iteration()
 
 
 def _len(obj) -> int:

@@ -57,6 +57,10 @@ def main(
     subset_size: int,
     grad_ips: bool,
 ):
+    """
+    This script runs a benchmark for measuring timings for
+    SGPR ELBO computation with gradients.
+    """
     info = {
         "seed": seed,
         "dataset_name": dataset,

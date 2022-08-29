@@ -39,7 +39,8 @@ def main(files):
 
     none_key = "none"
     xla_none_key = "xla-none"
-    other_key = "tl10GB_ts1GB"
+    other_key = "tl10GB_ts1GB_v2"
+    # other_key = "tl10GB_ts1GB"
     new_data = {
         "XLA": new_data[xla_none_key],
         "eXLA": new_data[other_key],

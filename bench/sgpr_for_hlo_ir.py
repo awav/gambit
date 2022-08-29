@@ -7,7 +7,7 @@ from typing_extensions import Literal
 import click
 import numpy as np
 import tensorflow as tf
-from bench.bench_sgpr_utils import compile_function
+from bench_sgpr_utils import compile_function
 
 cur_dir = str(Path(__file__).expanduser().absolute().parent)
 sys.path.append(cur_dir)
@@ -100,12 +100,21 @@ def main(
         grads = tape.gradient(loss, train_vars)
         return loss, grads
 
-    click.echo("==> Run SGPR loss and gradient")
+    click.echo("==> Run SGPR loss and gradient with JIT")
     jit_grad_and_loss_fn = compile_function(grad_and_loss_fn, compile_flag)
+    loss_jit, grads_jit = jit_grad_and_loss_fn()
 
-    loss, grads = jit_grad_and_loss_fn()
+    click.echo("==> Run SGPR loss and gradient without JIT")
+    loss, grads = grad_and_loss_fn()
+
     loss_np = loss.numpy()
-    grads_np = [g.numpy() for g in grads]
+    loss_jit_np = loss_jit.numpy()
+    np.testing.assert_almost_equal(loss_jit_np, loss_np)
+
+    for grad_jit, grad in zip(grads_jit, grads):
+        grad_jit_np = grad_jit.numpy()
+        grad_np = grad.numpy()
+        np.testing.assert_almost_equal(grad_jit_np, grad_np)
 
     click.echo("<=== Finished")
 
