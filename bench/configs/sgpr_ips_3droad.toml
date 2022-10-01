@@ -1,0 +1,22 @@
+cmd = 'python ./exp_sgpr_ips.py -l "{uid}" -c {compile} -s {seed} -d {dataset} -m {numips} -mi {maxiters}'
+
+[[exp]]
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={limit} --xla_tensor_split_size={limit} --xla_disable_hlo_passes=tensor-splitter" {cmd}'
+uid = './{rootdir}/{name}/{dataset}/{limit}/sgpr_trainable_ips{numips}_i{maxiters}/{seed}'
+
+name = "sgpr"
+limit = "1GB"
+compile = "xla"
+rootdir = "output"
+seed = [111, 222, 333]
+# seed = [111, 222, 333, 444, 555, 666, 777, 888, 999, 1111]
+dataset = ["3droad"]
+# numips = [500, 600, 700, 800, 900, 1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000]
+numips = [1000, 5000, 8000, 10000]
+maxiters = 1000
+
+
+[flags]
+restart = false
+num_proc = 4
+gpu_indices = ["0", "1", "2", "3"]

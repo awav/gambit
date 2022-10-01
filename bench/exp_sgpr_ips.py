@@ -8,6 +8,7 @@ from typing_extensions import Literal
 import click
 import numpy as np
 import tensorflow as tf
+import gpflow
 
 cur_dir = str(Path(__file__).expanduser().absolute().parent)
 sys.path.append(cur_dir)
@@ -31,7 +32,7 @@ DatasetBundle = NamedTuple
 
 __default_gambit_logs = "./logs_sgpr_default"
 DatasetChoices = click.Choice(
-    ["houseelectric", "song", "buzz", "3droad", "keggundirected", "protein", "kin40k"]
+    ["elevators", "houseelectric", "song", "buzz", "3droad", "keggundirected", "protein", "kin40k"]
 )
 
 _gpu_devices = tf.config.get_visible_devices("GPU")
@@ -53,6 +54,9 @@ if _gpu_dev is not None:
 @click.option("-mhi", "--metric-holdout-interval", type=int, default=50)
 @click.option("-hi", "--holdout-interval", default=1, type=int)
 @click.option("-m", "--numips", type=int, help="Number of inducing points")
+@click.option(
+    "--no-train-ips", is_flag=True, show_default=True, default=False, help="Train inducing points"
+)
 def main(
     dataset_name: str,
     maxiter: int,
@@ -63,6 +67,7 @@ def main(
     subset_size: int,
     holdout_interval: int,
     metric_holdout_interval: int,
+    no_train_ips: bool,
 ):
     click.echo("===> Starting")
     assert Path(logdir).exists()
@@ -109,13 +114,17 @@ def main(
         monitor.add_callback("metric", monitor_metric_fn, metric_holdout_interval)
 
     rng = np.random.RandomState(seed)
-    train_vars = model.trainable_variables
     initialize_ips(rng, data, model, numips, subset_size)
     loss_fn = model.training_loss_closure(compile=False)
     scipy_options = dict(maxiter=maxiter)
 
+    if no_train_ips:
+        gpflow.utilities.set_trainable(model.inducing_variable, False)
+
     click.echo("---> Begin optimization")
     opt = Scipy()
+    train_vars = model.trainable_variables
+    monitor.start_timers()
     res1 = opt.minimize(
         loss_fn,
         train_vars,
@@ -126,8 +135,9 @@ def main(
     update_optimizer_logs(res1, opt_logs)
     monitor.handle_callback("optimizer", monitor_optimizer_fn)
 
-    click.echo("---> Continue optimization (100 steps more)")
-    scipy_options = dict(maxiter=100)
+    phase2_steps = 100
+    click.echo(f"---> Continue optimization ({phase2_steps} steps more)")
+    scipy_options = dict(maxiter=phase2_steps)
     res2 = opt.minimize(
         loss_fn,
         train_vars,

@@ -156,10 +156,17 @@ cython_debug/
 *.o
 *.ll
 
+xla-*
+xla_*
+logs_*
+logs-*
+bench/xla_*
 bench/xla-*
-bench/uci
 bench/logs*
+bench/uci
+bench/output
 jax
+*.logs
 
 .DS_Store
 

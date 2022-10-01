@@ -1,0 +1,20 @@
+cmd = 'python ./exp_sgpr_ips.py -l "{uid}"'
+
+[[exp]]
+cmd = 'XLA_FLAGS="--xla_dump_hlo_as_dot --xla_dump_to=xla-sgpr-ips --xla_tensor_size_threshold=1GB --xla_tensor_split_size=1GB --xla_enable_hlo_passes_only=tensor-splitter,algebraic-rewriter,dce,broadcast-simplifier,cholesky_expander,triangular_solve_expander,bitcast_dtypes_expander,CallInliner,gpu_scatter_expander,rce-optimizer" {cmd}  -c {compile} -s {seed} -d {dataset} -m {numips} -mi {maxiters}'
+uid = './{rootdir}/{name}/{dataset}/{limit}/sgpr_tips{numips}_i{maxiters}/{seed}'
+
+name = "ips"
+limit = "1GB"
+compile = "xla"
+rootdir = "logs/sgpr-rebuttal"
+seed = 111
+dataset = "buzz"
+numips = 4000
+maxiters = 2
+
+
+[flags]
+restart = false
+num_proc = 2
+gpu_indices = ["2", "3"]

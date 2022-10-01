@@ -4,7 +4,42 @@ import tensorflow as tf
 import gpflow
 from tensorboardX import SummaryWriter
 import numpy as np
-from codetiming import Timer
+import math
+from codetiming import Timer, TimerError
+
+
+class MonitorTimer:
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self._total_timer = Timer("total_timer", logger=None)
+        self._inner_timer = Timer("inner_timer", logger=None)
+        self._logs = dict()
+
+    def take_readings(self) -> Dict:
+        time_metrics = dict()
+        time_metrics["inner_timer"] = self.inner_timer.last
+        try:
+            self.total_timer.stop()
+            time_metrics["total_time"] = self.total_timer.last
+            self.total_timer.start()
+        except TimerError:
+            time_metrics["total_time"] = self.inner_timer.last
+            self.total_timer.start()
+        return time_metrics
+    
+    @property
+    def logs(self) -> Dict:
+        return self._logs
+
+    @property
+    def total_timer(self) -> Timer:
+        return self._total_timer
+
+    @property
+    def inner_timer(self) -> Timer:
+        return self._inner_timer
 
 
 class Monitor:
@@ -22,8 +57,11 @@ class Monitor:
         self._callbacks: Dict[str, Tuple[Callable, Dict]] = {}
         self._callback_holdout_interval: Dict[str, int] = {}
         self._global_holdout_interval: int = holdout_interval
-        self._global_timer = Timer("global_timer", logger=None)
-        self._inner_timer = Timer("inner_timer", logger=None)
+        self._monitor_timers = MonitorTimer()
+
+    @property
+    def timers(self) -> MonitorTimer:
+        return self._monitor_timers
 
     @property
     def writer(self) -> SummaryWriter:
@@ -33,15 +71,13 @@ class Monitor:
     def callbacks(self) -> Dict[str, Tuple[Callable, Dict]]:
         return self._callbacks
     
-    @property
-    def global_timer(self) -> Timer:
-        return self._global_timer
+    def start_timers(self):
+        self.timers.total_timer.start()
+    
+    def timers_logs(self) -> Dict:
+        return self.timers.logs
 
-    @property
-    def inner_timer(self) -> Timer:
-        return self._inner_timer
-
-    def add_callback(self, name: str, callback: Callable, holdout_interval: int = None):
+    def add_callback(self, name: str, callback: Callable, holdout_interval: Optional[int] = None):
         self._callbacks[name] = (callback, {})
         if holdout_interval is not None:
             self._callback_holdout_interval[name] = holdout_interval
@@ -53,6 +89,7 @@ class Monitor:
         for name, (cb, _) in self._callbacks.items():
             callbacks[name] = (cb, {})
         self._callbacks = callbacks
+        self._monitor_timers.reset()
 
     def flush(self):
         self.writer.flush()
@@ -65,7 +102,8 @@ class Monitor:
         self._iter += 1
 
     def collect_logs(self) -> Dict:
-        out = {}
+        out = dict()
+        out["timers"] = self.timers_logs()
         for cb_name, (_, logs) in self._callbacks.items():
             if isinstance(logs, dict):
                 out[cb_name] = logs
@@ -115,7 +153,7 @@ class Monitor:
                     logs[key] = [numpy_value]
 
     def __call__(self, step: int, *args, **kwargs):
-        with self.inner_timer:
+        with self.timers.inner_timer:
             cur_step = self._iter
             global_interval = self._global_holdout_interval
 
@@ -132,7 +170,8 @@ class Monitor:
                 cb, logs = value
                 self.handle_callback(name, cb, logs)
 
-            self._incr_iteration()
+        self.handle_callback("timers", lambda _: self.timers.take_readings(), self.timers.logs)
+        self._incr_iteration()
 
 
 def _len(obj) -> int:
