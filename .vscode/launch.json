@@ -75,9 +75,10 @@
             "env": {
                 "PYTHONPATH": "${env:PYTHONPATH}:${workspaceFolder}:${workspaceFolder}/bench/",
                 "CUDA_DEVICE_ORDER": "PCI_BUS_ID",
-                "CUDA_VISIBLE_DEVICES": "0",
-                // "TF_DUMP_GRAPH_PREFIX": "./xla-dump/",
+                "CUDA_VISIBLE_DEVICES": "3",
+                "XLA_FLAGS": "--xla_tensor_size_threshold=1GB --xla_tensor_split_size=1GB --xla_disable_hlo_passes=tensor-splitter",
                 // "XLA_FLAGS": "--xla_dump_hlo_as_text --xla_dump_hlo_as_dot --xla_dump_to=./xla-dump/",
+                // "TF_DUMP_GRAPH_PREFIX": "./xla-dump/",
                 // "TF_XLA_FLAGS": "--tf_xla_auto_jit=2 --tf_xla_cpu_global_jit --tf_xla_enable_xla_devices --tf_xla_clustering_debug",
             },
             "justMyCode": false,

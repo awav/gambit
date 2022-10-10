@@ -18,5 +18,5 @@ maxiters = 1000
 
 [flags]
 restart = false
-num_proc = 4
-gpu_indices = ["0", "1", "2", "3"]
+num_proc = 3
+gpu_indices = ["1", "2", "3"]
