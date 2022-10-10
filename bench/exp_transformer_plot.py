@@ -49,18 +49,28 @@ def main(files):
 
     tf_key = "TF"
     xla_key = "XLA"
-    exla_key = "eXLA"
+    exla_key_v1 = "eXLA"
+    # exla_key_v2 = "eXLA-v2"
+
+    new_data = {
+        xla_key: new_data[xla_none_key],
+        exla_key_v1: new_data[v1_key],
+        # exla_key_v2: new_data[v2_key],
+        tf_key: new_data[none_key],
+    }
 
     linestyles = {
         tf_key: ":",
         xla_key: "-",
-        exla_key: (0, (5, 5)),
+        exla_key_v1: (0, (5, 5)),
+        # exla_key_v2: "-.",
     }
 
     colors = {
         tf_key: "tab:green",
         xla_key: "tab:orange",
-        exla_key: "tab:blue",
+        exla_key_v1: "tab:blue",
+        # exla_key_v2: "tab:purple",
     }
 
     plt.rcParams.update(
@@ -91,9 +101,10 @@ def main(files):
         ax2.plot(sequences, time_mean, color=color, linestyle=linestyle, label=key)
         return sequences
 
-    plot_values(ax_mem, ax_time, new_data, "XLA")
-    plot_values(ax_mem, ax_time, new_data, "TF")
-    sequences = plot_values(ax_mem, ax_time, new_data, "eXLA")
+    plot_values(ax_mem, ax_time, new_data, xla_key)
+    plot_values(ax_mem, ax_time, new_data, tf_key)
+    # plot_values(ax_mem, ax_time, new_data, exla_key_v2)
+    sequences = plot_values(ax_mem, ax_time, new_data, exla_key_v1)
 
     ax_mem.set_ylabel("Memory, bytes")
     ax_time.set_ylabel("Elapsed time, seconds")
@@ -120,7 +131,7 @@ def main(files):
     ax_time.axvline(2000, alpha=0.5, color=stop_color)
     ax_mem.axvline(2000, alpha=0.5, color=stop_color)
 
-    fig.suptitle("Transformer model, https://www.tensorflow.org/text/tutorials/transformer")
+    # fig.suptitle("Transformer model, https://www.tensorflow.org/text/tutorials/transformer")
 
     plt.tight_layout()
     plt.show()
