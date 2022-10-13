@@ -1,0 +1,34 @@
+cmd = 'python ./exp_transformer.py -l "{uid}" -c {compile} -s 777 -sl {sequence_len} -r {repeat}'
+
+[[exp]]
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={tensor_limit} --xla_tensor_split_size={tensor_size} --xla_disable_hlo_passes=tensor-splitter" {cmd} -m "tl{tensor_limit}_ts{tensor_size}_v2"'
+uid = './{rootdir}/exla/ts{tensor_limit}_ts{tensor_size}_sl{sequence_len}_v2/'
+
+tensor_limit = "10GB"
+tensor_size = "1GB"
+rootdir = "output/transformer"
+compile = "xla"
+repeat = 10
+sequence_len = [7000, 6500, 6000, 5500, 5000, 4500, 4000, 3500, 3000, 2750, 2500, 2250, 2000, 1750, 1500, 1250, 1000, 750, 500, 250]
+
+[[exp]]
+cmd = 'XLA_FLAGS="--xla_disable_hlo_passes=tensor-splitter,tensor-splitter-v2,rce-optimizer,broadcast-simplifier,dot-order-optimizer,algebraic-rewriter" {cmd} -m "xla-none"'
+uid = './{rootdir}/xla/xla-sl{sequence_len}/'
+rootdir = "output/transformer"
+compile = "xla"
+repeat = 10
+sequence_len = [7000, 6500, 6000, 5500, 5000, 4500, 4000, 3500, 3000, 2750, 2500, 2250, 2000, 1750, 1500, 1250, 1000, 750, 500, 250]
+
+[[exp]]
+cmd = '{cmd}'
+uid = './{rootdir}/tf/sl{sequence_len}/'
+rootdir = "output/transformer"
+compile = "tf"
+repeat = 10
+sequence_len = [7000, 6500, 6000, 5500, 5000, 4500, 4000, 3500, 3000, 2750, 2500, 2250, 2000, 1750, 1500, 1250, 1000, 750, 500, 250]
+
+
+[flags]
+restart = false
+num_proc = 2
+gpu_indices = ["2", "3"]
