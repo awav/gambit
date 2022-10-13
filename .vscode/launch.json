@@ -114,7 +114,8 @@
             "type": "promptString",
             "id": "paths",
             "description": "File path (s)",
-            "default": "/bench/logs/transformer-mem/*/bench.h5",
+            // "default": "/bench/logs/transformer-mem/*/bench.h5",
+            "default": "/bench/output/transformer/*/*/bench.h5",
         },
         {
             "type": "promptString",

@@ -41,35 +41,37 @@ def main(files):
     xla_none_key = "xla-none"
     other_key = "tl10GB_ts1GB_v2"
     # other_key = "tl10GB_ts1GB"
-    new_data = {
-        "XLA": new_data[xla_none_key],
-        "eXLA": new_data[other_key],
-        "TF": new_data[none_key],
-    }
+
 
     tf_key = "TF"
     xla_key = "XLA"
-    exla_key_v1 = "eXLA"
-    # exla_key_v2 = "eXLA-v2"
+    # exla_key_v1 = "eXLA"
+    exla_key = "eXLA"
 
     new_data = {
         xla_key: new_data[xla_none_key],
-        exla_key_v1: new_data[v1_key],
-        # exla_key_v2: new_data[v2_key],
+        exla_key: new_data[other_key],
         tf_key: new_data[none_key],
     }
+
+    # new_data = {
+    #     xla_key: new_data[xla_none_key],
+    #     # exla_key_v1: new_data[1_key],
+    #     exla_key_v2: new_data[],
+    #     tf_key: new_data[none_key],
+    # }
 
     linestyles = {
         tf_key: ":",
         xla_key: "-",
-        exla_key_v1: (0, (5, 5)),
-        # exla_key_v2: "-.",
+        exla_key: (0, (5, 5)),
+        # exla_key: "-.",
     }
 
     colors = {
         tf_key: "tab:green",
         xla_key: "tab:orange",
-        exla_key_v1: "tab:blue",
+        exla_key: "tab:blue",
         # exla_key_v2: "tab:purple",
     }
 
@@ -104,7 +106,7 @@ def main(files):
     plot_values(ax_mem, ax_time, new_data, xla_key)
     plot_values(ax_mem, ax_time, new_data, tf_key)
     # plot_values(ax_mem, ax_time, new_data, exla_key_v2)
-    sequences = plot_values(ax_mem, ax_time, new_data, exla_key_v1)
+    sequences = plot_values(ax_mem, ax_time, new_data, exla_key)
 
     ax_mem.set_ylabel("Memory, bytes")
     ax_time.set_ylabel("Elapsed time, seconds")
@@ -112,20 +114,22 @@ def main(files):
     ax_time.set_xlabel("Sequence length")
 
     ax_mem.yaxis.set_major_locator(tkr.MultipleLocator(5e9))
-    ax_mem.yaxis.set_minor_locator(tkr.MultipleLocator(1e9))
+    # ax_mem.yaxis.set_minor_locator(tkr.MultipleLocator(1e9))
 
-    # ax_mem.legend(loc="center right")
-    ax_time.legend(loc="upper left")
     ax_mem.yaxis.grid(visible=True, which="both", linestyle=":")
     ax_time.yaxis.grid(visible=True, which="both", linestyle=":")
 
-    ax_mem.set_xticks(sequences, labels=sequences, rotation=90)
-    ax_time.set_xticks(sequences, labels=sequences, rotation=90)
+    # ax_mem.set_xticks(sequences, labels=sequences, rotation=90)
+    # ax_time.set_xticks(sequences, labels=sequences, rotation=90)
 
     ax_mem.spines["right"].set_visible(False)
     ax_mem.spines["top"].set_visible(False)
     ax_time.spines["right"].set_visible(False)
     ax_time.spines["top"].set_visible(False)
+    ax_time.set_yscale("log")
+
+    # ax_mem.legend(loc="center right")
+    ax_time.legend(loc="upper left")
 
     stop_color = "black"
     ax_time.axvline(2000, alpha=0.5, color=stop_color)
