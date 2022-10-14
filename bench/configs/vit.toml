@@ -1,0 +1,39 @@
+cmd = 'python ./exp_vit.py -l "{uid}" -c {compile} -s 777 -ps {patch_size} -is {image_size} -r {repeat}'
+
+[[exp]]
+cmd = 'XLA_FLAGS="--xla_tensor_size_threshold={tensor_limit} --xla_tensor_split_size={tensor_size} --xla_disable_hlo_passes=tensor-splitter" {cmd} -m "tl{tensor_limit}_is{tensor_size}"'
+uid = './{rootdir}/exla/ts{tensor_limit}_ts{tensor_size}_is{image_size}_ps{patch_size}/'
+
+tensor_limit = "5GB"
+tensor_size = "500MB"
+rootdir = "output_final/vit"
+compile = "xla"
+repeat = 10
+patch_size = 16
+# image_size = [32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 544, 576, 608, 640, 672, 704, 736, 768, 800, 832, 864, 896, 928, 960, 992]
+image_size = [32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 608, 768, 992]
+
+
+[[exp]]
+cmd = 'XLA_FLAGS="--xla_disable_hlo_passes=tensor-splitter,tensor-splitter-v2,rce-optimizer,broadcast-simplifier,dot-order-optimizer,algebraic-rewriter" {cmd} -m "xla-none"'
+uid = './{rootdir}/xla/is{image_size}_ps{patch_size}/'
+rootdir = "output_final/vit"
+compile = "xla"
+repeat = 10
+patch_size = 16
+image_size = [32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 608, 768, 992]
+
+[[exp]]
+cmd = '{cmd}'
+uid = './{rootdir}/tf/is{image_size}_ps{patch_size}/'
+rootdir = "output_final/vit"
+compile = "tf"
+repeat = 10
+patch_size = 16
+image_size = [32, 64, 96, 128, 160, 192, 224, 256, 288, 320, 352, 384, 416, 448, 480, 512, 608, 768, 992]
+
+
+[flags]
+restart = false
+num_proc = 4
+gpu_indices = ["0", "1", "2", "3"]
