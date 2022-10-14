@@ -100,10 +100,11 @@ def create_vit_classifier(
     data_augmentation = keras.Sequential(
         [
             layers.Normalization(),
-            layers.Resizing(image_size, image_size),  # The difference
+            layers.Resizing(image_size, image_size),
             layers.RandomFlip("horizontal"),
-            layers.RandomRotation(factor=0.02),
-            layers.RandomZoom(height_factor=0.2, width_factor=0.2),
+            # NOTE(awav): Next two give an error on non existing operation ImageProjectiveTransformV3 in XLA.
+            # layers.RandomRotation(factor=0.02),  # TODO(awav): Error non-existing operation in XLA
+            # layers.RandomZoom(height_factor=0.2, width_factor=0.2),
         ],
         name="data_augmentation",
     )
@@ -158,6 +159,7 @@ def create_vit_classifier(
 @click.option("-w", "--warmup", type=int, default=1)
 @click.option("-c", "--compile", default="xla", help="Compile function with xla, tf or none")
 def main(
+    memory_limit: str,
     image_size: int,
     patch_size: int,
     logdir: str,
@@ -210,7 +212,7 @@ def main(
 
     bench_runner = BenchRunner(repeat=repeat, warmup=warmup, logdir=logdir)
     train_on_batch_args = [x_train[:batch_size], y_train[:batch_size], None, None, True, False]
-    bench_runner.bench(vit_classifier.train_on_batch, train_on_batch_args)
+    results = bench_runner.bench(vit_classifier.train_on_batch, train_on_batch_args)
     bench_table = {**info, **results}
 
     filepath = Path(logdir, "bench.h5")
