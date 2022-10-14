@@ -1,3 +1,4 @@
+from typing import Tuple
 from tensorflow import keras
 from tensorflow.keras import layers
 import tensorflow_addons as tfa
@@ -34,6 +35,9 @@ if __gpu_dev is not None:
 
 # New version after renaming
 # TF_CPP_MIN_LOG_LEVEL=0 CUDA_VISIBLE_DEVICES="3" DUMPDIR="xla-exp-transformer" XLA_FLAGS="--xla_dump_hlo_as_dot --xla_dump_to=${DUMPDIR} --xla_tensor_size_threshold=20GB --xla_tensor_split_size=10GB" python ./exp_transformer.py --sequence-len 10000 2>&1 | tee output-exp-transformer.log
+
+
+Shape = Tuple[int, ...]
 
 
 def mlp(x, hidden_units, dropout_rate):
@@ -75,74 +79,87 @@ class PatchEncoder(layers.Layer):
         return encoded
 
 
-def create_vit(image_size, data_augmentation, patch_size: int = 16):
-    learning_rate = 0.001
-    weight_decay = 0.0001
-    batch_size = 16
-    num_epochs = 1
-    patch_size = patch_size  # Size of the patches to be extract from the input images
-    projection_dim = 32
-    num_heads =12
+def create_vit_classifier(
+    x_train,
+    image_size: int = 32,
+    input_shape: Shape = (32, 32, 3),
+    patch_size: int = 16,
+    projection_dim: int = 32,
+    transformer_layers: int = 12,
+    num_heads: int = 12,
+    mlp_head_units: Shape = (2048, 1024),
+    num_classes: int = 100,
+):
     transformer_units = [
         projection_dim * 2,
         projection_dim,
-    ]  # Size of the transformer layers
-    transformer_layers = 12
-    mlp_head_units = [2048, 1024]  # Size of the dense layers of the final classifier
-    num_classes = 100
-    input_shape = (32, 32, 3)
+    ]
+
     num_patches = (image_size // patch_size) ** 2
 
-    def create_vit_classifier():
-        inputs = layers.Input(shape=input_shape)
-        # Augment data.
-        augmented = data_augmentation(inputs)
-        # Create patches.
-        patches = Patches(patch_size)(augmented)
-        # Encode patches.
-        encoded_patches = PatchEncoder(num_patches, projection_dim)(patches)
+    data_augmentation = keras.Sequential(
+        [
+            layers.Normalization(),
+            layers.Resizing(image_size, image_size),  # The difference
+            layers.RandomFlip("horizontal"),
+            layers.RandomRotation(factor=0.02),
+            layers.RandomZoom(height_factor=0.2, width_factor=0.2),
+        ],
+        name="data_augmentation",
+    )
+    # Compute the mean and the variance of the training data for normalization.
+    data_augmentation.layers[0].adapt(x_train)
 
-        # Create multiple layers of the Transformer block.
-        for _ in range(transformer_layers):
-            # Layer normalization 1.
-            x1 = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
-            # Create a multi-head attention layer.
-            attention_output = layers.MultiHeadAttention(
-                num_heads=num_heads, key_dim=projection_dim, dropout=0.1
-            )(x1, x1)
-            # Skip connection 1.
-            x2 = layers.Add()([attention_output, encoded_patches])
-            # Layer normalization 2.
-            x3 = layers.LayerNormalization(epsilon=1e-6)(x2)
-            # MLP.
-            x3 = mlp(x3, hidden_units=transformer_units, dropout_rate=0.1)
-            # Skip connection 2.
-            encoded_patches = layers.Add()([x3, x2])
+    inputs = layers.Input(shape=input_shape)
+    # Augment data.
+    augmented = data_augmentation(inputs)
+    # Create patches.
+    patches = Patches(patch_size)(augmented)
+    # Encode patches.
+    encoded_patches = PatchEncoder(num_patches, projection_dim)(patches)
 
-        # Create a [batch_size, projection_dim] tensor.
-        representation = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
-        representation = layers.Flatten()(representation)
-        representation = layers.Dropout(0.5)(representation)
-        # Add MLP.
-        features = mlp(representation, hidden_units=mlp_head_units, dropout_rate=0.5)
-        # Classify outputs.
-        logits = layers.Dense(num_classes)(features)
-        # Create the Keras model.
-        model = keras.Model(inputs=inputs, outputs=logits)
-        return model
+    # Create multiple layers of the Transformer block.
+    for _ in range(transformer_layers):
+        # Layer normalization 1.
+        x1 = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
+        # Create a multi-head attention layer.
+        attention_output = layers.MultiHeadAttention(
+            num_heads=num_heads, key_dim=projection_dim, dropout=0.1
+        )(x1, x1)
+        # Skip connection 1.
+        x2 = layers.Add()([attention_output, encoded_patches])
+        # Layer normalization 2.
+        x3 = layers.LayerNormalization(epsilon=1e-6)(x2)
+        # MLP.
+        x3 = mlp(x3, hidden_units=transformer_units, dropout_rate=0.1)
+        # Skip connection 2.
+        encoded_patches = layers.Add()([x3, x2])
+
+    # Create a [batch_size, projection_dim] tensor.
+    representation = layers.LayerNormalization(epsilon=1e-6)(encoded_patches)
+    representation = layers.Flatten()(representation)
+    representation = layers.Dropout(0.5)(representation)
+    # Add MLP.
+    features = mlp(representation, hidden_units=mlp_head_units, dropout_rate=0.5)
+    # Classify outputs.
+    logits = layers.Dense(num_classes)(features)
+    # Create the Keras model.
+    model = keras.Model(inputs=inputs, outputs=logits)
+    return model
 
 
 @click.command()
 @click.option("-l", "--logdir", type=LogdirPath(), default=__default_gambit_logs)
 @click.option("-m", "--memory-limit", type=str)
-@click.option("-sl", "--sequence-len", type=int)
+@click.option("-is", "--image-size", type=int)
+@click.option("-ps", "--patch-size", type=int)
 @click.option("-s", "--seed", type=int, default=0)
 @click.option("-r", "--repeat", type=int, default=1)
 @click.option("-w", "--warmup", type=int, default=1)
 @click.option("-c", "--compile", default="xla", help="Compile function with xla, tf or none")
 def main(
-    sequence_len: int,
-    memory_limit: int,
+    image_size: int,
+    patch_size: int,
     logdir: str,
     seed: int,
     warmup: int,
@@ -151,7 +168,8 @@ def main(
 ):
     memory_limit = "none" if memory_limit is None else memory_limit
     info = {
-        "sequence_len": sequence_len,
+        "image_size": image_size,
+        "patch_size": patch_size,
         "memory_limit": memory_limit,
         "seed": seed,
         "repeat": repeat,
@@ -164,52 +182,35 @@ def main(
     assert Path(logdir).exists()
 
     compile_flag: CompileType = compile if compile != "none" else None
+    jit_compile: bool = compile == "xla"
 
     rng = np.random.RandomState(seed)
     np.random.seed(seed)
     tf.random.set_seed(seed)
-    gpflow_dtype = gpflow.config.default_float()
 
-    def ctt(x, dtype=None):
-        dtype = gpflow_dtype if dtype is None else dtype
-        return tf.convert_to_tensor(x, dtype=dtype)
+    learning_rate = 0.001
+    weight_decay = 0.0001
+    batch_size = 16
+    num_epochs = 1
+    batch_size = 16
 
-    batch_size = 64
-    d_model = 512
-    num_heads = 8
-    input_shape = (batch_size, sequence_len)
+    (x_train, y_train), (x_test, y_test) = keras.datasets.cifar100.load_data()
 
-    # Max size is prod([batch_size, num_heads, seq_len, seq_len, d_model]) * precision
-
-    # q = rng.randn(*input_shape)
-    # k = rng.randn(*input_shape)
-    # v = rng.randn(*input_shape)
-    # q_tf = ctt(q)
-    # k_tf = ctt(k)
-    # v_tf = ctt(v)
-
-    x = rng.uniform(0, 200, size=input_shape)
-    y = rng.uniform(0, 200, size=input_shape)
-    x_tf = ctt(x)
-    y_tf = ctt(y)
-
-    transformer = Transformer(
-        num_layers=2,
-        d_model=d_model,
-        num_heads=num_heads,
-        dff=2048,
-        input_vocab_size=8500,
-        target_vocab_size=8000,
+    vit_classifier = create_vit_classifier(x_train, image_size=image_size, patch_size=patch_size)
+    optimizer = tfa.optimizers.AdamW(learning_rate=learning_rate, weight_decay=weight_decay)
+    vit_classifier.compile(
+        optimizer=optimizer,
+        loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+        metrics=[
+            keras.metrics.SparseCategoricalAccuracy(name="accuracy"),
+            keras.metrics.SparseTopKCategoricalAccuracy(5, name="top-5-accuracy"),
+        ],
+        jit_compile=jit_compile,
     )
 
-    def eval_test(inputs, targets):
-        out = transformer([inputs, targets], training=False)
-        return out
-
-    eval_test_compiled = compile_function(eval_test, compile_flag)
-
     bench_runner = BenchRunner(repeat=repeat, warmup=warmup, logdir=logdir)
-    results = bench_runner.bench(eval_test_compiled, [x_tf, y_tf])
+    train_on_batch_args = [x_train[:batch_size], y_train[:batch_size], None, None, True, False]
+    bench_runner.bench(vit_classifier.train_on_batch, train_on_batch_args)
     bench_table = {**info, **results}
 
     filepath = Path(logdir, "bench.h5")
